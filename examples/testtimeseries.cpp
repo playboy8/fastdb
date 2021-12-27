@@ -47,8 +47,8 @@ REGISTER_TEMPLATE(DailyBlock);
 REGISTER(Stock);
 
 inline int random(unsigned mod) { return rand() % mod; }
-inline float fmax(float x, float y) { return x > y ? x : y; }
-inline float fmin(float x, float y) { return x < y ? x : y; }
+//inline float fmax(float x, float y) { return x > y ? x : y; }
+//inline float fmin(float x, float y) { return x < y ? x : y; }
 
 int main(int argc, char* argv[])
 {
