@@ -72,7 +72,7 @@ public:
 // 创建 Record 数据表
 REGISTER(Record);
  
-const int g_Records = 5;
+
  
 //! 插入数据
 void insertRecord(int size)
@@ -193,17 +193,14 @@ int main()
 
     #define ROW 10
     #define COL 2
-    int test_count = 10 *10000;
+    const int test_count = 10 *10000;
     int test_par[ROW][COL];  // 批量测试参数
     int test_result[ROW][2];  // 批量测试参数
     for(int i = 0 ; i < ROW; i++)
     {
-        test_par[i][0] = 2*i+1;
-        test_par[i][1] = test_count/(i+1);
+        test_par[i][0] = 10*i+1;
+        test_par[i][1] = test_count/(test_par[i][0]);
     }
-
-
-
 
     if (db.open(_T("testpar")))
     {
@@ -227,10 +224,11 @@ int main()
         }
        // diff.add_snap();
        
-   //     for(int i = 0 ; i < ROW; i++)
-   //     {
-    //        printf(" %8d" ,  test_count <<  "" );
-
+        printf(" %s\t\t %s\t %s\t %s\t\t %s\t %s\t\t\n" , "总条数", "每次发送条数" ,"发送线程数" ,"延时ms" , "仅发送延迟" , "IPS");
+        for(int i = 0 ; i < ROW; i++)
+        {
+           printf("%16d %8d %8d %16d %16d \t %16f \n" ,  test_count ,  test_par[i][0], 1 , test_result[i][0], test_result[i][1],   (test_count*1000 *1.0 )/ (test_result[i][0] *1.0)   );
+        }
 // show resuult
      continue;  
        // std::cout << " "
@@ -278,9 +276,15 @@ int main()
 
     }
 
+
     if(db.isOpen())
+    {
+        // 删除所有数据
+        removeAllRecord();
         // 关闭数据库
-    db.close();
+        db.close();
+    }    
+    
     
    return 0;
 }
