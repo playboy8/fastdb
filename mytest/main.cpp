@@ -4,11 +4,11 @@
 
 
 #include "../opt/public.h"
-
-
-
 #include <fastdb/fastdb.h>
 #include <stdio.h>
+#include <thread>
+#include <vector>
+
 
 USE_FASTDB_NAMESPACE
 
@@ -75,7 +75,7 @@ REGISTER(Record);
 
  
 //! 插入数据
-void insertRecord(int size)
+void insertRecord(int size, int id)
 {
 //    printf("####### insertRecord #######\n");
     for ( int4 i = 0; i < size; i++ )
@@ -105,10 +105,11 @@ void insertRecord(int size)
         rec.value19 = i;
         rec.value20 = i;
       
-    //    printf("%d---%d\n", rec.id, rec.value);
            
         // 插入数据
+        // printf(" inserted database  threadid:%d\n ",id);
         insert( rec );
+                           
     }
 }
  
@@ -158,7 +159,7 @@ void removeRecord(const int id)
 //! 删除所有数据
 void removeAllRecord()
 {
-    printf("####### removeAllRecord #######\n");
+  //  printf("####### removeAllRecord #######\n");
    
     dbCursor<Record> cursorWrite(dbCursorForUpdate);  // 写游标对象 dbCursorForUpdate
     cursorWrite.removeAll();                          // 这里进行清除, 不清除会进行累加
@@ -169,13 +170,17 @@ void selectRecord()
 {
    printf("####### selectRecord #######\n");
    
+   diff_count diff;
+   diff.start();
     dbCursor<Record> cursorRead;  // 只读游标对象
     int n = cursorRead.select();  // 查询
-         
+    diff.add_snap();
+    int a,b;
+    diff.show_diff(a,b,true);
     // 存在记录
     if(0 < n)
     {
-        int cnt = 5;
+        int cnt = 1;
         do
         {
             printf("%d---%d---%d --- size= %d\n", n, cursorRead->id, cursorRead->value,n);
@@ -184,26 +189,18 @@ void selectRecord()
     }
    
 }
- 
-int main()
-{
-    dbDatabase db;
- 
-    // 打开数据库 testpar
-
     #define ROW 10
     #define COL 2
-    const int test_count = 10 *10000;
-    int test_par[ROW][COL];  // 批量测试参数
-    int test_result[ROW][2];  // 批量测试参数
-    for(int i = 0 ; i < ROW; i++)
-    {
-        test_par[i][0] = 10*i+1;
-        test_par[i][1] = test_count/(test_par[i][0]);
-    }
 
+void test_insert(int test_count, int test_par[][COL], int test_result[][COL], int threadid)
+{
+   dbDatabase db;
+//   printf(" will open database  threadid:%d\n ",threadid);
+//   sleep(1);
     if (db.open(_T("testpar")))
     {
+//    printf(" opened database  threadid:%d\n ",threadid);
+//    sleep(1);
         do
         {
         // 插入数据
@@ -214,78 +211,99 @@ int main()
             diff_count diff;
             for(int j = 0; j < test_par[i][1]; j++)
             {
-                insertRecord(test_par[i][0]);
+                insertRecord(test_par[i][0], threadid);
+
+
                 // 提交
                 diff.start();
                 db.commit();
                 diff.stop();
             }
             diff.show_diff(test_result[i][0],test_result[i][1]);
+            // 删除所有数据
+           // removeAllRecord();
+           // db.commit();  
+           // sleep(5);
         }
-       // diff.add_snap();
+
        
-        printf(" %s\t\t %s\t %s\t %s\t\t %s\t %s\t\t\n" , "总条数", "每次发送条数" ,"发送线程数" ,"延时ms" , "仅发送延迟" , "IPS");
-        for(int i = 0 ; i < ROW; i++)
-        {
-           printf("%16d %8d %8d %16d %16d \t %16f \n" ,  test_count ,  test_par[i][0], 1 , test_result[i][0], test_result[i][1],   (test_count*1000 *1.0 )/ (test_result[i][0] *1.0)   );
-        }
-// show resuult
-     continue;  
-       // std::cout << " "
-
-
-
         // 查询数据
         selectRecord();
+
+        continue; 
 
         while (1)
         {
             sleep(100);
-        }
-
- 
-      
+        }      
         // 更新数据加1
-        updateRecord();
-
-                
+        updateRecord();                
         // 提交
-        db.commit();
-     
+        db.commit();     
         // 查询数据
-        selectRecord();
-      
+        selectRecord();      
         // 删除数据
         removeRecord(1);
         // 提交
-        db.commit();
-      
+        db.commit();     
         // 查询数据
-        selectRecord();
-      
+        selectRecord();     
         // 删除所有数据
         removeAllRecord();
         // 提交
-        db.commit();
-      
+        db.commit();   
         // 查询数据
         selectRecord();
         }
         while (false);
-        
-
     }
-
 
     if(db.isOpen())
     {
         // 删除所有数据
-        removeAllRecord();
+       // removeAllRecord();
         // 关闭数据库
         db.close();
-    }    
-    
-    
+    }   
+}
+ 
+int main()
+{
+    // 打开数据库 testpar
+    int th_count =1;
+
+    const int test_count = 10 *10000;
+    int test_par[ROW][COL];  // 批量测试参数
+    int test_result[th_count][ROW][2];  // 批量测试参数
+    for(int i = 0 ; i < ROW; i++)
+    {
+        test_par[i][0] = 2*i+1;
+        test_par[i][1] = test_count/(test_par[i][0]);
+    }
+
+    std::vector<std::thread> test_th;
+   
+    for(int i= 0; i< th_count; i++)
+    {
+        std::thread  th(test_insert,test_count,test_par,test_result[i], i);
+        test_th.emplace_back(std::move(th));
+    }
+    //test_insert(test_count, test_par, test_result);
+
+     for(auto &t : test_th)
+     {
+         if(t.joinable())
+            t.join();
+     }
+     
+    for(int j= 0; j< th_count; j++)
+    {
+        printf("\n %s\t\t %s\t %s\t %s\t\t %s\t %s\t\t\n" , "总条数", "每次发送条数" ,"发送线程数" ,"延时ms" , "仅发送延迟" , "IPS");
+        for(int i = 0 ; i < ROW; i++)
+        {
+           printf("%16d %8d %8d %16d %16d \t %16f \n" ,  test_par[i][0]*test_par[i][1] ,  test_par[i][0], 1 , test_result[0][i][0], test_result[0][i][1],   (test_count*1000 *1.0 )/ (test_result[0][i][0] *1.0)   );
+        }
+    }
    return 0;
 }
 
