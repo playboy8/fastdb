@@ -393,6 +393,8 @@ dbServer::dbServer(dbDatabase* db,
                    int optimalNumberOfThreads, 
                    int connectionQueueLen)
 {
+    printf(" ---check code here -%s-- %d",__FILE__, __LINE__);
+
     char buf[256];
     next = chain;
     chain = this;
@@ -418,6 +420,8 @@ dbServer::dbServer(dbDatabase* db,
     }
     freeList = activeList = waitList = NULL;
     waitListLength = 0;
+
+   printf(" ---check code here -%s-- %d",__FILE__, __LINE__);
 }
    
 dbServer* dbServer::find(char const* URL)

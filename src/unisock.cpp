@@ -37,6 +37,7 @@
 #include <stddef.h>
 #include <assert.h>
 #include <errno.h>
+#include <linux/limits.h>
 
 extern "C" {
 #include <netdb.h>
@@ -66,6 +67,10 @@ class unix_socket_library {
 };
 
 static unix_socket_library unisock_lib;
+struct sockaddr_un {
+    sa_family_t sun_family; /* AF_UNIX */
+    char sun_path[PATH_MAX];   /* pathname */  
+};
 
 bool unix_socket::open(int listen_queue_size)
 {
@@ -75,6 +80,8 @@ bool unix_socket::open(int listen_queue_size)
 #ifdef VXWORKS
     int proto = SOCK_STREAM;
 #endif // VXWORKS
+
+ //   TRACE_IMSG((" ---check code here -%s-- %d\n",__FILE__, __LINE__));
 
     assert(address != NULL);
 
@@ -93,9 +100,9 @@ bool unix_socket::open(int listen_queue_size)
     union { 
         sockaddr    sock;
         sockaddr_in sock_inet;
-#ifdef VXWORKS
+#if 1 //def VXWORKS
         struct sockaddr_un usock;
-#endif
+#endif 
         char        name[MAX_HOST_NAME];
     } u;
     int len;
@@ -111,15 +118,12 @@ bool unix_socket::open(int listen_queue_size)
         unlink(u.usock.sun_path); // remove file if existed
         create_file = true;
 #else
-        u.sock.sa_family = AF_UNIX;
-
+        u.usock.sun_family = AF_UNIX;
         assert(strlen(unix_socket_dir) + strlen(address) 
-               < MAX_HOST_NAME - offsetof(sockaddr,sa_data)); 
-        
-        len = offsetof(sockaddr,sa_data) + 
-            sprintf(u.sock.sa_data, "%s%s.%u", unix_socket_dir, hostname, port);
-
-        unlink(u.sock.sa_data); // remove file if existed
+               < MAX_HOST_NAME - offsetof(sockaddr_un,sun_path)); 
+        len = offsetof(sockaddr_un,sun_path) + 
+            sprintf(u.usock.sun_path, "%s%s.%u", unix_socket_dir, hostname, port);
+        unlink(u.usock.sun_path); // remove file if existed
         create_file = true; 
 #endif // VXWORKS
     } else {

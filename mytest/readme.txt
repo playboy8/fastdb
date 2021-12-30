@@ -69,6 +69,7 @@ MSDB:   FASTDB 无盘模式
  1000000              201        1              470              152       2127659.574468 
  1000000              251        1              450               93       2222222.222222 
 
+
 ------------------------------------------------------------------------------------------
 
 // 每轮测试后先删除所有记录-----------------------------------------------------------------
@@ -137,11 +138,31 @@ MSDB:   FASTDB 无盘模式
 
 
 
+// posix 共享内存  
+999960---0---0 --- size= 999960
+
+ 总条数          每次发送条数    发送线程数      延时ms          仅发送延迟      IPS
+          100000        1        1             1565              952         63897.763578 
+           99999        3        1              744              303        134408.602151 
+          100000        5        1              472              213        211864.406780 
+           99995        7        1              344              161        290697.674419 
+           99999        9        1              295              150        338983.050847 
+           99990       11        1              250              121        400000.000000 
+           99996       13        1              204              101        490196.078431 
+           99990       15        1              147              102        680272.108844 
+           99994       17        1              139               82        719424.460432 
+           99997       19        1              138               76        724637.681159 
 
 
 
+debug:
+g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -O0 -g  -Wno-invalid-offsetof -Wall -DDEBUG -MT subsql.o -MD -MP -MF .deps/subsql.Tpo -c -o subsql.o subsql.cpp
+g++ -O0 -g -Wno-invalid-offsetof -Wall -DDEBUG -o .libs/subsql subsql.o  ./.libs/libfastdb.so -lpthread -lm  -Wl,--rpath -Wl,/opt/fastdb64/lib
 
 
+release:
+g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -MT container.lo -MD -MP -MF .deps/container.Tpo -c container.cpp -o container.o
+g++ -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -o .libs/testtimeseries testtimeseries.o  ../src/.libs/libfastdb.so -lpthread -lm  -Wl,--rpath -Wl,/opt/fastdb64/lib
 
 
 

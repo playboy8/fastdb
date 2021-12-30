@@ -25,7 +25,7 @@ BEGIN_FASTDB_NAMESPACE
  */
 #ifdef DISKLESS_CONFIGURATION
 // In diskless confiuration database can not be reallocated
-const size_t dbDefaultInitDatabaseSize = 5*1024*1024*1024UL; // 从默认 32M 改成 1G ， 另外 还需要修改系统 shmmax (查看sysctl -a | grep shm)
+const size_t dbDefaultInitDatabaseSize = 4*1024*1024*1024UL; // 从默认 32M 改成 1G ， 另外 还需要修改系统 shmmax (查看sysctl -a | grep shm)
 #else
 const size_t dbDefaultInitDatabaseSize = 1024*1024;
 #endif

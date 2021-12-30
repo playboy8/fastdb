@@ -233,6 +233,7 @@ void dbSubSql::error(char const* msg)
 
 int dbSubSql::scan() 
 {
+    // printf("1 ival=%ld,   digits=%d", 1, 1 );
     int i, ch, digits;
     
     if (ungetToken >= 0) { 
@@ -315,10 +316,13 @@ int dbSubSql::scan()
                      ch == 'E' || ch == '.'));
         unget(ch);
         buf[i] = '\0';
+
+    //    printf("0-- ival=%ld,   digits=%d",ival, digits );
         if (sscanf(buf, INT8_FORMAT "%n", &ival, &digits) != 1) { 
             error("Bad integer constant");
             return tkn_error;
         }
+
         if (digits != i) { 
             if (sscanf(buf, "%lf%n", &fval, &digits) != 1 || digits != i) {
                 error("Bad float constant");
@@ -326,6 +330,7 @@ int dbSubSql::scan()
             }
             return tkn_fconst;
         } 
+
         return tkn_iconst;
 
       case '#':
@@ -368,7 +373,7 @@ int dbSubSql::scan()
 
 
 bool dbSubSql::expect(char* expected, int token)
-{
+{//tkn_iconst
     int tkn = scan();
     if (tkn != token) { 
         if (tkn != tkn_error) { 
@@ -2717,10 +2722,13 @@ help\n\n");
                     error("Database was build without server support");
 #else
                     dbServer* server = dbServer::find(buf);
+
                     if (server == NULL) { 
                         char* serverURL = new char[strlen(buf)+1];
                         strcpy(serverURL, buf);
+
                         if (expect("number of threads", tkn_iconst)) { 
+                             printf("serverURL: %s  thid=%d\n", serverURL, (int)ival);
                             server = new dbServer(this, serverURL, (int)ival);
                             printf("Server started for URL %s\n", serverURL);
                         }
@@ -2733,7 +2741,7 @@ help\n\n");
                 } else { 
                     error("Token 'server' expected");
                 }
-            }
+            } 
             continue;
           case tkn_stop:
             tkn = scan();

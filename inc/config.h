@@ -14,6 +14,13 @@
 #ifdef HAVE_CONFIG_H
 #include "acconfig.h"
 
+
+//externtion MACRO for function spec
+#if !defined(_WIN32) || defined(_WIN64) // most unixes are now 64-bit, while 32-bit windows is still quite popular
+#define LARGE_DATABASE_SUPPORT 
+#endif
+
+
 #else // not HAVE_CONFIG_H
 
 #if (defined(_WIN32) || defined(_WINCE)) && (!defined(_CRT_SECURE_NO_DEPRECATE))

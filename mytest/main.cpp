@@ -194,7 +194,7 @@ void selectRecord()
 
 void test_insert(int test_count, int test_par[][COL], int test_result[][COL], int threadid)
 {
-   dbDatabase db;
+   dbDatabase db(dbDatabase::dbAllAccess);
 //   printf(" will open database  threadid:%d\n ",threadid);
 //   sleep(1);
     if (db.open(_T("testpar")))
@@ -204,7 +204,6 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
         do
         {
         // 插入数据
-        int temp[COL] ; 
 
         for(int i = 0 ; i < ROW; i++)
         {
@@ -218,24 +217,28 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
                 diff.start();
                 db.commit();
                 diff.stop();
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
             diff.show_diff(test_result[i][0],test_result[i][1]);
             // 删除所有数据
            // removeAllRecord();
            // db.commit();  
            // sleep(5);
+           
         }
 
        
         // 查询数据
         selectRecord();
 
-        continue; 
+        continue;   
 
         while (1)
         {
             sleep(100);
-        }      
+        }    
+
+        
         // 更新数据加1
         updateRecord();                
         // 提交
@@ -301,7 +304,7 @@ int main()
         printf("\n %s\t\t %s\t %s\t %s\t\t %s\t %s\t\t\n" , "总条数", "每次发送条数" ,"发送线程数" ,"延时ms" , "仅发送延迟" , "IPS");
         for(int i = 0 ; i < ROW; i++)
         {
-           printf("%16d %8d %8d %16d %16d \t %16f \n" ,  test_par[i][0]*test_par[i][1] ,  test_par[i][0], 1 , test_result[0][i][0], test_result[0][i][1],   (test_count*1000 *1.0 )/ (test_result[0][i][0] *1.0)   );
+           printf("%16d %8d %8d %16d %16d \t %16f \n" ,  test_par[i][0]*test_par[i][1] ,  test_par[i][0], 1 , test_result[j][i][0], test_result[j][i][1],   (test_count*1000 *1.0 )/ (test_result[j][i][0] *1.0)   );
         }
     }
    return 0;

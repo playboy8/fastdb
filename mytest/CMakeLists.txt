@@ -18,7 +18,8 @@ else()
         set (lib "hiredis.so")
 endif()
 
-file( GLOB  sources  ${CMAKE_SOURCE_DIR}   ./*.cpp  ../opt/*  ./*.c   )
+
+file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -DHAVE_CONFIG_H -DNDEBUG  -std=c++11   -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing   " ) 
@@ -32,9 +33,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -DHAVE_CONFIG_H -DNDEBUG  -std=c++11   
 include_directories(${vendor_dir}/include)
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
-add_executable(  ${name}  ${sources}  )
+add_executable(  ${name}  ${sources}  ${CMAKE_SOURCE_DIR}/main.cpp )
 
 target_link_libraries(${name}   PUBLIC
+                                ${vendor_dir}/lib/libfastdb.so 
+                                pthread m  )
+
+add_executable( reader  ${sources} ${CMAKE_SOURCE_DIR}/reader.cpp )
+
+target_link_libraries(reader   PUBLIC
                                 ${vendor_dir}/lib/libfastdb.so 
                                 pthread m  )
 
