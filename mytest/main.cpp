@@ -45,7 +45,7 @@ public:
     int4 value19; 
     int4 value20;  
  
-    TYPE_DESCRIPTOR( ( KEY( id, HASHED  ),
+    TYPE_DESCRIPTOR( ( KEY( id, INDEXED  ),
                        FIELD( value ),                     
                       FIELD( value1) ,
                       FIELD( value2) ,        
@@ -194,10 +194,13 @@ void selectRecord()
 
 void test_insert(int test_count, int test_par[][COL], int test_result[][COL], int threadid)
 {
-   dbDatabase db(dbDatabase::dbAllAccess);
+    unsigned long initsize = 3 *1024* 1024* 1024UL;
+    unsigned long extqn = 4194304UL;
+    unsigned long initindexsize = 524288UL;
+   dbDatabase db(dbDatabase::dbAllAccess, initsize,extqn,initindexsize,1, 6 );
 //   printf(" will open database  threadid:%d\n ",threadid);
 //   sleep(1);
-    if (db.open(_T("testpar")))
+    if (db.open(_T("testpar"),nullptr,3))
     {
 //    printf(" opened database  threadid:%d\n ",threadid);
 //    sleep(1);
@@ -217,7 +220,7 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
                 diff.start();
                 db.commit();
                 diff.stop();
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+               // std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
             diff.show_diff(test_result[i][0],test_result[i][1]);
             // 删除所有数据
@@ -260,7 +263,11 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
         }
         while (false);
     }
-
+    else
+    {
+        printf(" open database failed ! ");
+    }
+std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     if(db.isOpen())
     {
         // 删除所有数据
@@ -307,6 +314,8 @@ int main()
            printf("%16d %8d %8d %16d %16d \t %16f \n" ,  test_par[i][0]*test_par[i][1] ,  test_par[i][0], 1 , test_result[j][i][0], test_result[j][i][1],   (test_count*1000 *1.0 )/ (test_result[j][i][0] *1.0)   );
         }
     }
+
+    
    return 0;
 }
 

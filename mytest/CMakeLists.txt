@@ -22,7 +22,7 @@ endif()
 file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -DHAVE_CONFIG_H -DNDEBUG  -std=c++11   -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing   " ) 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11 -D_DEBUG  -g -ggdb3  -Wno-invalid-offsetof -Wall  -O2 -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
 
 #g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -MT guess.o -MD -MP -MF .deps/guess.Tpo -c -o guess.o guess.cpp
 #/bin/sh ../libtool --tag=CXX   --mode=link g++  -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing   -o guess guess.o ../src/libfastdb.la -lpthread -lm 
@@ -39,10 +39,22 @@ target_link_libraries(${name}   PUBLIC
                                 ${vendor_dir}/lib/libfastdb.so 
                                 pthread m  )
 
+                              
 add_executable( reader  ${sources} ${CMAKE_SOURCE_DIR}/reader.cpp )
 
 target_link_libraries(reader   PUBLIC
                                 ${vendor_dir}/lib/libfastdb.so 
+                                pthread m  )
+
+
+add_executable( cliwrite  ${sources} ${CMAKE_SOURCE_DIR}/cliwrite.cpp )
+target_link_libraries(cliwrite   PUBLIC
+                                ${vendor_dir}/lib/libcli.so 
+                                pthread m  )
+
+add_executable( cliread  ${sources} ${CMAKE_SOURCE_DIR}/cliread.cpp )
+target_link_libraries(cliread   PUBLIC
+                                ${vendor_dir}/lib/libcli.so 
                                 pthread m  )
 
 message(STATUS "\n\
