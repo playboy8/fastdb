@@ -238,7 +238,8 @@ int main()
    diff_count diff;
    diff.start();
 
-    int count = 10000 * 1 ;
+    int count = 10000 * 10 ;
+    int count_num = count;
     while (count > 0)
     { 
         rc = cli_insert(statement, &oid);
@@ -250,6 +251,7 @@ count--;
     }
     diff.add_snap();
     diff.show_diff(a,b, true);
+    std::cout << "IPS:" << count_num*1.0 * 1000  /  a  << std::endl ;
 
 
     rc = cli_free(statement);
