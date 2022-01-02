@@ -124,7 +124,7 @@ bool diff_count::stop()
 {
     PUTIL_GetLocalTime(&time);
 	long long time1 = PUTIL_SystemTimeToDateTime(&time);
-    sum_t += time1 - timestap.back();
+    sum_t += (time1 - timestap.back());
     timestap.push_back(time1);
     return true;
 }
@@ -146,7 +146,7 @@ int diff_count::show_diff()
 int diff_count::show_diff(int& totle_delay , int& core_delay, bool show)
 {
 
-    int diff = diff_ms(timestap.back(),timestap.front());
+    int diff = diff_ms(timestap.back(),start_t);
     totle_delay = diff;
     core_delay = sum_t;
 //    std::cout << " delay ms："  << diff << std::endl;
