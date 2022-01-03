@@ -218,10 +218,12 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
 
                 // 提交
                 diff.start();
-                db.commit();
+                db.precommit();
+                //db.commit();
                 diff.stop();
                // std::this_thread::sleep_for(std::chrono::milliseconds(500));
             }
+            db.commit();
             diff.show_diff(test_result[i][0],test_result[i][1]);
             // 删除所有数据
            // removeAllRecord();
