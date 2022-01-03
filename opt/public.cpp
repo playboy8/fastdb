@@ -116,7 +116,7 @@ bool diff_count::start()
     {
         start_t = time1;
         sum_t = 0;
-        std::cout << " start_t:" << start_t << "\t sum_t:" << sum_t << std::endl;
+//        std::cout << " start_t:" << start_t << "\t sum_t:" << sum_t << std::endl;
     }
     return true;
 }
@@ -149,8 +149,8 @@ int diff_count::show_diff(int& totle_delay , int& core_delay, bool show)
     totle_delay = diff;
     core_delay = sum_t;
 
-    std::cout << " start_t:" << start_t << "\t sum_t:" << sum_t << std::endl;
-    std::cout << " totle_delay:" << totle_delay << "\t core_delay:" << core_delay << "\ttimestap.back:" << timestap.back() << std::endl;
+//    std::cout << " start_t:" << start_t << "\t sum_t:" << sum_t << std::endl;
+//    std::cout << " totle_delay:" << totle_delay << "\t core_delay:" << core_delay << "\ttimestap.back:" << timestap.back() << std::endl;
     if(show)
     {
         std::cout << " totle_delay  ："  << totle_delay << "\t core_delay: " << core_delay <<  std::endl;
