@@ -30,6 +30,12 @@ const size_t dbDefaultInitDatabaseSize = 4*1024*1024*1024UL; // 从默认 32M �
 const size_t dbDefaultInitDatabaseSize = 1024*1024;
 #endif
 
+
+// define macro to enable detect thread crash and unlock mutex 
+
+#define AUTO_DETECT_PROCESS_CRASH
+
+
 /**
  * Default initial index size (number of objects)
  */
