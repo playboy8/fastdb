@@ -850,7 +850,7 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
     }
     unpack4(response);
     if (response <= 0) { 
-        return response;
+        return response;// return 
     }
     if (s->buf_size < (size_t)response-4) { 
         delete[] s->buf;
@@ -861,6 +861,12 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
     if (!s->session->sock->read(buf, response-4)) { 
         return cli_network_error;
     }
+
+
+
+//  解析收到的一条数据 
+
+
     char* p = buf;
     int result = cli_ok;
     if (cmd == cli_cmd_seek) { 
@@ -1028,6 +1034,11 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
 int cli_get_first(int statement)
 {
     return cli_get(statement, cli_cmd_get_first);
+}
+
+int cli_get_multy(int statement)
+{
+    return cli_get(statement, cli_cmd_get_multy);
 }
 
 int cli_get_last(int statement)

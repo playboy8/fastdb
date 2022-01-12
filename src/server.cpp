@@ -1022,7 +1022,11 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
         return session->sock->write(&response, sizeof response);
     }
     size_t msg_size = sizeof(cli_oid_t) + 4;
+
+// one record
     char* data = (char*)db->getRow(stmt->cursor->currId);
+
+// parser data size , and  copy to buf.
     char* src;
     for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
         src = data + cb->fd->dbsOffs;
@@ -1115,15 +1119,18 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
         }
         msg_size += 1; // column type
     }
+///
+// reloc buf
     if ((size_t)stmt->buf_size < msg_size) { 
         delete[] stmt->buf;
         stmt->buf = new char[msg_size];
         stmt->buf_size = (int)msg_size;
     }
     char* p = stmt->buf;
-    p = pack4(p, (int)msg_size);
-    p = pack_oid(p, result);
+    p = pack4(p, (int)msg_size);// size
+    p = pack_oid(p, result);    // record_id
 
+// parser data
     for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
         char* src = data + cb->fd->dbsOffs;
         *p++ = cb->cliType;
@@ -1364,6 +1371,8 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
             }
         }
     }
+
+    // 
     assert((size_t)(p - stmt->buf) == msg_size);
     return session->sock->write(stmt->buf, msg_size);
 }
@@ -2267,9 +2276,9 @@ void dbServer::serveClient()
               case cli_cmd_get_first:
                 online = get_first(session, req.stmt_id);
                 break;
-            //  case cli_cmd_get_multy:   
-            //    online = get_multy(session, req.stmt_id);
-            //    break;             
+              case cli_cmd_get_multy:   
+                online = get_multy(session, req.stmt_id);
+                break;             
               case cli_cmd_get_last:
                 online = get_last(session, req.stmt_id);
                 break;

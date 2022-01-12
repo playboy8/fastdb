@@ -210,6 +210,7 @@ int main()
 
 #if 1
     rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor),  record_descriptor);
+
     if (rc == cli_ok) { 
 	table_created = 1;
     } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
@@ -245,11 +246,18 @@ int main()
             return EXIT_FAILURE;
         }  
         else
-        {
+        {          
             sum_select += rc;
         }   
         
-        cli_get_first(statement);
+        rc = cli_get_multy(statement);
+        //rc = cli_get_first(statement);
+        std::cout << " rc:" <<  rc << std::endl;
+        if(cli_ok == rc )
+        {
+           std::cout << "p.id:" << p.id << "\t p.value:" << p.value << std::endl; 
+        }
+
         while ((rc = cli_get_next(statement)) == cli_ok)
         {
             /* code */

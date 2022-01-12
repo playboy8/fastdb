@@ -85,6 +85,11 @@ void selectRecord( int  times)
         dbCursor<Record> cursorRead;  // 只读游标对象
         int n = cursorRead.select();  // 查询
         sum += n;
+        while (cursorRead.next())
+        {
+            /* code */
+        }
+        
    }
    
     diff.add_snap();

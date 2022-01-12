@@ -414,6 +414,17 @@ int FASTDB_DLL_ENTRY cli_insert(int statement, cli_oid_t* oid);
 int FASTDB_DLL_ENTRY cli_get_first(int statement);
 
 /*********************************************************************
+ * cli_get_multy
+ *     Get multy rows of the selection.
+ * Parameters:
+ *     statement  - statememt descriptor returned by cli_statement
+ * Returns:
+ *     result code as described in cli_result_code enum
+ */
+int FASTDB_DLL_ENTRY cli_get_multy(int statement);
+
+
+/*********************************************************************
  * cli_get_last
  *     Get last row of the selection.
  * Parameters:

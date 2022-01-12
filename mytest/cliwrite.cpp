@@ -244,7 +244,10 @@ int main()
     { 
 
         // 逐条发送  
+        p.id = count;
+        p.value = count+1;
         rc = cli_insert(statement, &oid);
+
         count--;
         if (rc != cli_ok) { 
             fprintf(stderr, "cli_insert failed with code %d\n", rc);
