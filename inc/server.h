@@ -144,12 +144,14 @@ class FASTDB_DLL_ENTRY dbServer {
     bool freeze(dbSession* session, int stmt_id);
     bool unfreeze(dbSession* session, int stmt_id);
     bool get_first(dbSession* session, int stmt_id);
+    bool get_multy(dbSession* session, int stmt_id);      
     bool get_last(dbSession* session, int stmt_id);
     bool get_next(dbSession* session, int stmt_id);
     bool get_prev(dbSession* session, int stmt_id);
     bool seek(dbSession* session, int stmt_id, char* buf);
     bool skip(dbSession* session, int stmt_id, char* buf);
     bool fetch(dbSession* session, dbStatement* stmt, oid_t result);
+    bool fetch_multy(dbSession* session, dbStatement* stmt, oid_t result);
     bool fetch(dbSession* session, dbStatement* stmt) { 
         return fetch(session, stmt, stmt->cursor->currId);
     }
