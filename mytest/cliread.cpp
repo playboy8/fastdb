@@ -209,8 +209,7 @@ int main()
     }
 
 #if 1
-    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor), 
-			  record_descriptor);
+    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor),  record_descriptor);
     if (rc == cli_ok) { 
 	table_created = 1;
     } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
@@ -218,7 +217,7 @@ int main()
 	return EXIT_FAILURE;
     } 
 #endif
-    statement = cli_statement(session, "insert into Record");
+    statement = cli_statement(session, "select * from Record");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
@@ -230,28 +229,39 @@ int main()
         return EXIT_FAILURE;
     }
 
-    p.id = 1;
-    p.value = 2;
-    p.value1 =3 ;
-
     int a , b ;
    diff_count diff;
    diff.start();
 
-    int count = 10000 * 10 ;
+    int count = 1;
     int count_num = count;
+    long long sum_select = 0;
     while (count > 0)
     { 
-        rc = cli_insert(statement, &oid);
-count--;
-        if (rc != cli_ok) { 
-            fprintf(stderr, "cli_insert failed with code %d\n", rc);
+        rc = cli_fetch(statement, cli_view_only);
+        count--;
+        if (rc < 0 ) { 
+            fprintf(stderr, "cli_fetch failed with code %d\n", rc);
             return EXIT_FAILURE;
-        }       
+        }  
+        else
+        {
+            sum_select += rc;
+        }   
+        
+        cli_get_first(statement);
+        while ((rc = cli_get_next(statement)) == cli_ok)
+        {
+            /* code */
+        }          
     }
+
+
+
+
     diff.add_snap();
     diff.show_diff(a,b, true);
-    std::cout << "IPS:" << count_num*1.0 * 1000  /  a  << std::endl ;
+    std::cout << "IPS:" << sum_select*1.0 * 1000  /  a  << "   totle_select_count:" << sum_select << std::endl ;
 
 
     rc = cli_free(statement);
