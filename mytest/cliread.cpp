@@ -250,18 +250,19 @@ int main()
             sum_select += rc;
         }   
         
-        rc = cli_get_multy(statement);
+       // rc = cli_get_multy(statement);
         //rc = cli_get_first(statement);
-        std::cout << " rc:" <<  rc << std::endl;
-        if(cli_ok == rc )
-        {
-           std::cout << "p.id:" << p.id << "\t p.value:" << p.value << std::endl; 
-        }
+       // std::cout << " rc:" <<  rc << std::endl;
+
 
         while ((rc =  cli_get_multy(statement)) == cli_ok)
         {
-            /* code */
-        }          
+            if(cli_ok == rc )
+            {
+                std::cout << "p.id:" << p.id << "\t p.value:" << p.value << std::endl; 
+            }
+        } 
+          std::cout << " rc:" <<  rc << std::endl;        
     }
 
 

@@ -548,7 +548,10 @@ bool dbServer::get_multy(dbSession* session, int stmt_id)
     int4 response;
     if (stmt == NULL || stmt->cursor == NULL) { 
         response = cli_bad_descriptor;
-    } else if (!stmt->cursor->gotoFirst()) { 
+    }
+    else if (!((stmt->firstFetch && stmt->cursor->gotoFirst()) ||
+               (!stmt->firstFetch && stmt->cursor->moveNext()))) 
+    { 
         response = cli_not_found;
     } else { 
         return fetch_multy(session, stmt, stmt->cursor->currId);//fetch(session, stmt);
