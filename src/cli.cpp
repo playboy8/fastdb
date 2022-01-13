@@ -837,6 +837,7 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
         length += sizeof(cli_oid_t);
         pack_oid((char*)(&get.req+1), value);
     }
+
     get.req.length  = length;
     get.req.cmd     = cmd;
     get.req.stmt_id = statement;
@@ -844,6 +845,7 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
     if (!s->session->sock->write(&get.req, length)) { 
         return cli_network_error;
     }   
+    
     int4 response;
     if (!s->session->sock->read(&response, sizeof response)) { 
         return cli_network_error;
@@ -852,11 +854,17 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
     if (response <= 0) { 
         return response;// return 
     }
+
+    printf("response=%d \n",response);
+
     if (s->buf_size < (size_t)response-4) { 
         delete[] s->buf;
         s->buf_size = response-4 < DEFAULT_BUF_SIZE ? DEFAULT_BUF_SIZE : response-4;
         s->buf = new char[s->buf_size];
     }
+
+
+
     char* buf = s->buf;
     if (!s->session->sock->read(buf, response-4)) { 
         return cli_network_error;

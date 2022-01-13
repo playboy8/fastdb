@@ -258,7 +258,7 @@ int main()
            std::cout << "p.id:" << p.id << "\t p.value:" << p.value << std::endl; 
         }
 
-        while ((rc = cli_get_next(statement)) == cli_ok)
+        while ((rc =  cli_get_multy(statement)) == cli_ok)
         {
             /* code */
         }          

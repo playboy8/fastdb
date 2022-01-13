@@ -80,6 +80,8 @@ class dbStatement {
     int                 n_columns;
     dbParameterBinding* params;
     dbTableDescriptor*  table;
+    long                recored_size;
+    long                curr_index;
     
     void reset();
 
@@ -91,6 +93,8 @@ class dbStatement {
         buf_size = 0;
         table = NULL;
         cursor = NULL;
+        recored_size = 0;
+        curr_index = 0;
     }
     ~dbStatement() { 
         reset(); 

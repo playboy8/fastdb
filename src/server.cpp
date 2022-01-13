@@ -9,6 +9,7 @@
 //-------------------------------------------------------------------*--------*
 
 #define INSIDE_FASTDB
+#define CLI_DEFAULT_MULT (100)
 
 #include "fastdb.h"
 #include "compiler.h"
@@ -1008,25 +1009,12 @@ bool dbServer::fetch(dbSession* session, dbStatement* stmt, oid_t result)
     return session->sock->write(stmt->buf, msg_size);
 }
 
-
-bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
+// cal ont record data size 
+size_t get_msg_size(char* data, dbStatement* stmt )
 {
-    int4 response;
+  dbColumnBinding* cb;
     char buf[64];
-    dbColumnBinding* cb;
-    
-    stmt->firstFetch = false;
-    if (stmt->cursor->isEmpty()) { 
-        response = cli_not_found;
-        pack4(response);
-        return session->sock->write(&response, sizeof response);
-    }
-    size_t msg_size = sizeof(cli_oid_t) + 4;
-
-// one record
-    char* data = (char*)db->getRow(stmt->cursor->currId);
-
-// parser data size , and  copy to buf.
+    size_t  msg_size = 0;
     char* src;
     for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
         src = data + cb->fd->dbsOffs;
@@ -1119,18 +1107,16 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
         }
         msg_size += 1; // column type
     }
-///
-// reloc buf
-    if ((size_t)stmt->buf_size < msg_size) { 
-        delete[] stmt->buf;
-        stmt->buf = new char[msg_size];
-        stmt->buf_size = (int)msg_size;
-    }
-    char* p = stmt->buf;
-    p = pack4(p, (int)msg_size);// size
-    p = pack_oid(p, result);    // record_id
 
-// parser data
+    return msg_size;
+}
+
+// 
+bool parser_fill_msg_data(char* data, dbStatement* stmt, char** msg_head)
+{
+  dbColumnBinding* cb;
+  char* p  =*msg_head;
+  char buf[64] ;
     for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
         char* src = data + cb->fd->dbsOffs;
         *p++ = cb->cliType;
@@ -1371,9 +1357,70 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
             }
         }
     }
+    *msg_head = p;
+    return true;
+}
 
-    // 
+bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
+{
+    int4 response;
+    
+    stmt->firstFetch = false;
+    if (stmt->cursor->isEmpty()) { 
+        response = cli_not_found;
+        pack4(response);
+        return session->sock->write(&response, sizeof response);
+    }
+    size_t msg_size = sizeof(cli_oid_t) + 4;
+
+// one record
+    char* data = (char*)db->getRow(stmt->cursor->currId);
+
+// parser data size , and  copy to buf.
+  size_t per_size = get_msg_size(data,stmt);
+  size_t totl_size = CLI_DEFAULT_MULT * per_size; 
+  msg_size += totl_size; 
+///
+  TRACE_MSG(("per_size= '%d'  msg_size='%d' \n", per_size, msg_size));
+
+// reloc buf      
+    if ((size_t)stmt->buf_size < msg_size) { 
+        delete[] stmt->buf;
+        stmt->buf = new char[msg_size];
+        stmt->buf_size = (int)msg_size;
+    }
+    char* p = stmt->buf;
+    p = pack4(p, (int)msg_size);// size
+    p = pack_oid(p, result);    // record_id
+
+// parser data
+
+    bool ret = parser_fill_msg_data(data,stmt,&p);
+
+    int  i = 1 ;
+    for( ; stmt->cursor->gotoNext() &&  i <CLI_DEFAULT_MULT; i++ )
+    {
+      data = (char*)db->getRow(stmt->cursor->currId);
+      bool ret = parser_fill_msg_data(data,stmt,&p);
+      if(!ret)
+      {
+        TRACE_MSG((" parser_fill_msg_data failed ! \n"));  
+        return true;
+      }
+    }
+    
+    size_t totl_size2 = i * per_size;
+    msg_size = sizeof(cli_oid_t) + 4 + totl_size2 ;
+
+
+    assert(ret);
     assert((size_t)(p - stmt->buf) == msg_size);
+
+    char* q = stmt->buf;
+    q = pack4(p, (int)msg_size);// size
+    q = pack_oid(p, result);    // record_id
+
+
     return session->sock->write(stmt->buf, msg_size);
 }
 
