@@ -33,7 +33,7 @@ const size_t dbDefaultInitDatabaseSize = 1024*1024;
 
 // define macro to enable detect thread crash and unlock mutex 
 
-#define AUTO_DETECT_PROCESS_CRASH
+//#define AUTO_DETECT_PROCESS_CRASH
 
 
 /**
