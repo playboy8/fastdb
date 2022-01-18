@@ -259,7 +259,7 @@ int main()
         {
             if(cli_ok == rc )
             {
-                std::cout << "p.id:" << p.id << "\t p.value:" << p.value << std::endl; 
+            //    std::cout << "p.id:" << p.id << "\t p.value:" << p.value << std::endl; 
             }
         } 
           std::cout << " rc:" <<  rc << std::endl;        

@@ -221,7 +221,7 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
                 db.precommit();
                 //db.commit();
                 diff.stop();
-               // std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
                //  printf(" -- ");
             }
             db.commit();

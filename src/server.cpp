@@ -9,7 +9,7 @@
 //-------------------------------------------------------------------*--------*
 
 #define INSIDE_FASTDB
-#define CLI_DEFAULT_MULT (100)
+#define CLI_DEFAULT_MULT (2000)
 
 #include "fastdb.h"
 #include "compiler.h"
@@ -554,7 +554,7 @@ bool dbServer::get_multy(dbSession* session, int stmt_id)
     { 
         response = cli_not_found;
     } else { 
-        return fetch_multy(session, stmt, stmt->cursor->currId);//fetch(session, stmt);
+        return fetch_multy(session, stmt, stmt->cursor->currId); 
     }
     pack4(response);
     return session->sock->write(&response, sizeof response);
@@ -1378,13 +1378,11 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
 
 // one record
     char* data = (char*)db->getRow(stmt->cursor->currId);
-
 // parser data size , and  copy to buf.
   size_t per_size = get_msg_size(data,stmt);
   size_t totl_size = CLI_DEFAULT_MULT * per_size; 
   msg_size += totl_size; 
-///
-  TRACE_MSG(("per_size= '%d'  msg_size='%d' \n", per_size, msg_size));
+//  TRACE_MSG(("per_size= '%d'  msg_size='%d' \n", per_size, msg_size));
 
 // reloc buf      
     if ((size_t)stmt->buf_size < msg_size) { 
@@ -1397,11 +1395,9 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
     p = pack_oid(p, result);    // record_id
 
 // parser data
-
     bool ret = parser_fill_msg_data(data,stmt,&p);
-
     int  i = 1 ;
-    for( ; stmt->cursor->gotoNext() &&  i <CLI_DEFAULT_MULT; i++ )
+    for( ; i <CLI_DEFAULT_MULT &&  stmt->cursor->gotoNext() ; i++ )
     {
       data = (char*)db->getRow(stmt->cursor->currId);
       bool ret = parser_fill_msg_data(data,stmt,&p);
@@ -1411,6 +1407,7 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
         return true;
       }
     }
+//    TRACE_MSG((" CLI_DEFAULT_MULT  parser_fill_msg_data() finished i=%d \n",i ));
     
     size_t totl_size2 = i * per_size;
     msg_size = sizeof(cli_oid_t) + 4 + totl_size2 ;
@@ -1420,11 +1417,11 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
     assert((size_t)(p - stmt->buf) == msg_size);
 
     char* q = stmt->buf;
-    q = pack4(p, (int)msg_size);// size
-    q = pack_oid(p, result);    // record_id
+    q = pack4(q, (int)msg_size);// size
+    q = pack_oid(q, result);    // record_id
 
-
-    return session->sock->write(stmt->buf, msg_size);
+    bool this_ret = session->sock->write(stmt->buf, msg_size);
+    return this_ret;
 }
 
     

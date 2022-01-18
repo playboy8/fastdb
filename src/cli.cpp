@@ -855,7 +855,7 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
         return response;// return 
     }
 
-    printf("response=%d \n",response);
+//    printf("response=%d \n",response);
 
     if (s->buf_size < (size_t)response-4) { 
         delete[] s->buf;
@@ -863,17 +863,14 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
         s->buf = new char[s->buf_size];
     }
 
-
-
     char* buf = s->buf;
     if (!s->session->sock->read(buf, response-4)) { 
         return cli_network_error;
     }
 
-
+//    printf(" recive data finished ！ \n");
 
 //  解析收到的一条数据 
-
 
     char* p = buf;
     int result = cli_ok;

@@ -72,13 +72,19 @@ REGISTER(Record);
     #define COL 2
 
 //! 查询数据
-void selectRecord( int  times)
+long long selectRecord( int  times)
 {
-   printf("####### selectRecord #######\n");
+//   printf("####### selectRecord #######\n");
    
    long long sum = 0 ;
-   diff_count diff;
-   diff.start();
+
+
+   
+
+    diff_count diff;
+    diff.start(); 
+
+
 
    for (size_t i = 0; i < times; i++)
    {
@@ -91,12 +97,14 @@ void selectRecord( int  times)
         }
         
    }
-   
+
     diff.add_snap();
     int a,b;
     diff.show_diff(a,b,true);
-    printf(" totole serch records: %lld\n", sum);
 
+    printf(" totole serch records: %lld  ,  totletime_ms: %lld      OPS:%f \n", sum, a , (sum*1000 *1.0 / a*1.0) );
+
+   return sum;
 }
 
 void test_insert(int test_count, int test_par[][COL], int test_result[][COL], int threadid)
@@ -111,21 +119,27 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
     {
 //    printf(" opened database  threadid:%d\n ",threadid);
 //    sleep(1);
+
+
         do
         {
         // 插入数据
 
         // 查询数据
-        selectRecord(1);
 
-        continue;   
+ 
+         selectRecord(100000);
 
-        while (1)
-        {
-            sleep(100);
-        }    
+        //sleep(1);
+            
         }
         while (false);
+
+
+
+
+
+
     }
     else
     {
