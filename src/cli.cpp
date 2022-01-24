@@ -658,6 +658,8 @@ static int cli_send_columns(int statement, int cmd)
             }
         }
     }
+    //   批量发送数据 ---------
+    //   构建buffer
     dbSmallBuffer buf(msg_size);
     char* p = buf;
     cli_request* req = (cli_request*)p;
@@ -771,9 +773,41 @@ static int cli_send_columns(int statement, int cmd)
     return cli_ok;
 }
 
+
+//
+
 int cli_insert(int statement, cli_oid_t* oid)
 {
     int rc = cli_send_columns(statement, cli_cmd_insert);
+    if (rc == cli_ok) { 
+        char buf[sizeof(cli_oid_t) + 8];
+        statement_desc* s = statements.get(statement);
+        if (!s->session->sock->read(buf, sizeof buf)) { 
+            rc = cli_network_error;
+        } else { 
+            rc = unpack4(buf);
+            s->prepared = true;
+            s->oid = unpack_oid(buf + 8);
+            if (oid != NULL) { 
+                *oid = s->oid;
+            }
+           if (s->autoincrement) {
+               int4 rowid = unpack4(buf + 4);
+               for (column_binding* cb = s->columns; cb != NULL; cb = cb->next) {
+                   if (cb->var_type == cli_autoincrement) {
+                       *(int4*)cb->var_ptr = rowid;
+                   }
+               }
+           }
+        }
+    }
+    return rc;
+}
+
+
+int cli_insert_multy(int statement,void* record, int record_size, cli_oid_t* oid)
+{
+    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
     if (rc == cli_ok) { 
         char buf[sizeof(cli_oid_t) + 8];
         statement_desc* s = statements.get(statement);

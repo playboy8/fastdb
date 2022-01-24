@@ -1775,6 +1775,187 @@ char* dbServer::checkColumns(dbStatement* stmt, int n_columns,
     return data;
 }
 
+size_t dbServer::parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg)
+{
+    size_t offs;
+    dbColumnBinding* cb;
+    char* data = *msg;
+    offs = desc->fixedSize;
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        cb->ptr = data;
+        if (cb->cliType == cli_decimal) {
+            data += strlen(data) + 1;
+        } else if (cb->cliType == cli_datetime) {
+            data += 4;
+        } else if (cb->cliType == cli_autoincrement) {
+            ;
+        } else if (cb->cliType >= cli_asciiz && (cb->cliType <= cli_array_of_string || cb->cliType == cli_array_of_wstring)) {
+            int len = unpack4(data);
+            cb->len = len;
+            if (cb->cliType == cli_cstring) { 
+                cb->len += 1; // add '\0'
+            }
+            offs = DOALIGN(offs, cb->fd->components->alignment)
+                 + cb->len*cb->fd->components->dbsSize;
+            data += 4;
+            if (cb->cliType == cli_array_of_string) { 
+                while (--len >= 0) { 
+                    int n = (int)strlen(data) + 1; 
+                    offs += n;
+                    data += n;
+                }
+            } else if (cb->cliType == cli_array_of_wstring) { 
+                while (--len >= 0) { 
+                    int n = (int)((wcslen((wchar_t*)data) + 1)*sizeof(wchar_t)); 
+                    offs += n;
+                    data += n;
+                }
+            } else if (cb->cliType == cli_array_of_decimal) { 
+                while (--len >= 0) { 
+                    data += strlen(data) + 1; 
+                }
+            } else {
+                data += len*cb->fd->components->dbsSize;
+            }
+        } else {
+            data += sizeof_type[cb->cliType];
+        }
+    }
+
+    *msg = data;
+    return offs ; 
+}
+
+
+bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
+{
+    bool prepare = true;
+    dbStatement* stmt = findStatement(session, stmt_id);
+    dbTableDescriptor* desc = NULL;
+    dbColumnBinding* cb;
+    int4   response;
+    char   reply_buf[sizeof(cli_oid_t) + 8];
+    char*  dst;
+    oid_t  oid = 0;
+    size_t offs;
+    size_t size;
+    int    i, n_columns;
+    dbFieldDescriptor* fd;
+
+    if (stmt == NULL) { 
+        if (!prepare) { 
+            response = cli_bad_statement;
+            goto return_response;
+        }
+        stmt = new dbStatement(stmt_id);
+        stmt->next = session->stmts;
+        session->stmts = stmt;
+    } else {
+        if (prepare) { 
+            stmt->reset();
+        } else if ((desc = stmt->table) == NULL) {
+            response = cli_bad_descriptor;
+            goto return_response;
+        }
+    }
+    if (prepare) { 
+        session->scanner.reset(data);
+        if (session->scanner.get() != tkn_insert 
+            || session->scanner.get() != tkn_into
+            || session->scanner.get() != tkn_ident) 
+        {
+            response = cli_bad_statement;
+            goto return_response;
+        }
+        desc = db->findTable(session->scanner.ident);
+        if (desc == NULL) {     
+            response = cli_table_not_found;
+            goto return_response;
+        }
+        data += strlen(data)+1;
+        n_columns = *data++ & 0xFF;
+
+        // parser clo name and create columebonding
+        data = checkColumns(stmt, n_columns, desc, data, response, false);
+        if (response != cli_ok) { 
+            goto return_response;
+        }
+        stmt->table = desc;
+    }
+ 
+    // parser data pos, bonding data to cb struct.
+
+    offs = parser_data_from_msg(desc, stmt, &data);
+    size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
+    db->beginTransaction(dbDatabase::dbExclusiveLock);
+    db->modified = true;
+    oid = db->allocateRow(desc->tableId, size);
+#ifdef AUTOINCREMENT_SUPPORT
+    desc->autoincrementCount = ((dbTable*)db->getRow(desc->tableId))->count;
+#endif
+    dst = (char*)db->getRow(oid);    
+    memset(dst + sizeof(dbRecord), 0, size - sizeof(dbRecord));
+
+
+    // dump data to cb struct , and set offset 
+    offs = desc->fixedSize;
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        fd = cb->fd;
+        if (fd->type == dbField::tpArray || fd->type == dbField::tpString || fd->type == dbField::tpWString) {
+            offs = DOALIGN(offs, fd->components->alignment);
+            ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)offs;
+            ((dbVarying*)(dst + fd->dbsOffs))->size = cb->len;
+            cb->unpackArray(dst, offs);
+        } else { 
+            cb->unpackScalar(dst, true);
+        }
+    }
+
+    fd = desc->columns; 
+    for (i = (int)desc->nColumns; --i >= 0; fd = fd->next) { 
+        if ((fd->type == dbField::tpString || fd->type == dbField::tpWString) 
+            && ((dbVarying*)(dst + fd->dbsOffs))->offs == 0)
+        {
+            ((dbVarying*)(dst + fd->dbsOffs))->size = 1;
+            ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)(size - sizeof(wchar_t));
+        }
+    }
+
+    // iesert collume data in a row
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        if (cb->fd->indexType & HASHED) { 
+            dbHashTable::insert(db, cb->fd, oid, 0);
+        }
+        if (cb->fd->indexType & INDEXED) { 
+            if (cb->fd->type == dbField::tpRectangle) { 
+                dbRtree::insert(db, cb->fd->tTree, oid, cb->fd->dbsOffs);
+            } else { 
+                dbTtree::insert(db, cb->fd->tTree, oid, 
+                                cb->fd->type, (int)cb->fd->dbsSize, cb->fd->_comparator, cb->fd->dbsOffs);
+            }
+        }
+    }
+
+
+/// should add auto precommit() 
+
+    response = cli_ok;
+  return_response:
+    pack4(reply_buf, response);
+    if (desc == NULL) { 
+        pack4(reply_buf+4, 0);
+    } else { 
+#ifdef AUTOINCREMENT_SUPPORT
+        pack4(reply_buf+4, desc->autoincrementCount);
+#else
+        pack4(reply_buf+4, ((dbTable*)db->getRow(desc->tableId))->nRows);
+#endif
+    }
+    pack_oid(reply_buf+8, oid);
+    return session->sock->write(reply_buf, sizeof reply_buf);
+}    
+
+
 
 bool dbServer::insert(dbSession* session, int stmt_id, char* data, bool prepare)
 {
@@ -2408,7 +2589,10 @@ void dbServer::serveClient()
                 break;          
               case cli_cmd_insert:
                 online = insert(session, req.stmt_id, msg, false);
-                break;          
+                break;   
+              case cli_cmd_insert_multy:
+                online = insert_multy(session, req.stmt_id, msg);
+                break;                         
               case cli_cmd_describe_table:
                 online = describe_table(session, (char*)msg);
                 break;

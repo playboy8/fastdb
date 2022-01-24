@@ -163,6 +163,8 @@ class FASTDB_DLL_ENTRY dbServer {
     bool remove_current(dbSession* session, int stmt_id);
     bool update(dbSession* session, int stmt_id, char* new_data);
     bool insert(dbSession* session, int stmt_id, char* data, bool prepare);
+    bool insert_multy(dbSession* session, int stmt_id, char* data);
+    size_t parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg);
     bool select(dbSession* session, int stmt_id, char* data, bool prepare);
     bool show_tables(dbSession* session); 
     bool describe_table(dbSession* session, char const* table);
