@@ -270,7 +270,7 @@ int main()
 
     diff.add_snap();
     diff.show_diff(a,b, true);
-    std::cout << "IPS:" << sum_select*1.0 * 1000  /  a  << "   totle_select_count:" << sum_select << std::endl ;
+    printf(" IPS:  %8f      totle_select_count:%lld  \n", sum_select*1.0 * 1000  /  a ,  sum_select );
 
 
     rc = cli_free(statement);

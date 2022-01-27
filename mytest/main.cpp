@@ -185,9 +185,8 @@ void selectRecord()
         {
             printf("%d---%d---%d --- size= %d\n", n, cursorRead->id, cursorRead->value,n);
             cnt-- ;
-        }while(cursorRead.next() && cnt > 0 );  // next() 游标向后滚
+        }while(cursorRead.next() && cnt > 0);  // next() 游标向后滚
     }
-   
 }
     #define ROW 10
     #define COL 2
@@ -214,7 +213,6 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
             for(int j = 0; j < test_par[i][1]; j++)
             {
                 insertRecord(test_par[i][0], threadid);
-
 
                 // 提交
                 diff.start();
