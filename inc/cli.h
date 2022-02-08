@@ -394,6 +394,22 @@ int FASTDB_DLL_ENTRY cli_fetch_ex(int statement, int for_update, cli_cardinality
 
 /*********************************************************************
  * cli_insert
+ *     Execute multy insert statement.
+ * Parameters:
+ *     statement  - statememt descriptor returned by cli_statement
+ *     records    - array of record
+ *     record_size- per record size (fix size)
+ *     record_num - totle num of array element.
+ *     oid        - object identifier of created record. 
+ * Returns:
+ *     status code as described in cli_result_code enum
+ * Attention: not support pointeer type in record.
+ */
+//int FASTDB_DLL_ENTRY cli_insert_multy(int statement,  cli_oid_t* oid);
+int FASTDB_DLL_ENTRY cli_insert_multy(int statement, void* records, int record_size, int record_num, cli_oid_t* oid);
+
+/*********************************************************************
+ * cli_insert
  *     Execute insert statement.
  * Parameters:
  *     statement  - statememt descriptor returned by cli_statement

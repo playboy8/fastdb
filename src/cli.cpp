@@ -659,7 +659,7 @@ static int cli_send_columns(int statement, int cmd)
         }
     }
     //   批量发送数据 ---------
-    //   构建buffer
+    //   构建buffer , 填充数据 
     dbSmallBuffer buf(msg_size);
     char* p = buf;
     cli_request* req = (cli_request*)p;
@@ -773,9 +773,238 @@ static int cli_send_columns(int statement, int cmd)
     return cli_ok;
 }
 
+// attention:  records must not contain any pointeer.
+static int cli_send_multy_columns(int statement, int cmd, void* records, int record_size, int record_num)
+{
+    statement_desc* s = statements.get(statement);
+    column_binding* cb;
+    if (s == NULL) { 
+        return cli_bad_descriptor;
+    }
+    size_t msg_size = sizeof(cli_request);
+    if (cmd == cli_cmd_update) { 
+        if (!s->prepared) { 
+            return cli_not_fetched;
+        }
+        if (s->oid == 0) { 
+            return cli_not_found;
+        }
+        if (s->updated) {
+            return cli_already_updated;
+        } 
+        if (!s->for_update) { 
+            return cli_not_update_mode;
+        }
+    } else { 
+        if (!s->prepared) { 
+            cmd = cli_cmd_prepare_and_insert;
+            msg_size += 1 + s->stmt_len + s->n_columns + s->columns_len;
+        }
+    }
+    s->autoincrement = false;
+
+    //计算 绑定的类型  发送数据大小
+
+    #if 0
+    size_t msg_size2 = 0 ;
+    for (cb = s->columns; cb != NULL; cb = cb->next) { 
+        if (cb->get_fnc != NULL) { 
+            cb->arr_ptr = cb->get_fnc(cb->var_type, cb->var_ptr, &cb->arr_len, 
+                                    cb->name, statement, cb->user_data);
+            int len = cb->arr_len;
+            msg_size2 += 4;
+            if (cb->var_type == cli_array_of_string) {
+                char** p = (char**)cb->arr_ptr;
+                while (--len >= 0) { 
+                    msg_size2 += strlen(*p++) + 1;
+                }
+            } else if (cb->var_type == cli_array_of_wstring) {
+                wchar_t** p = (wchar_t**)cb->arr_ptr;
+                while (--len >= 0) { 
+                    msg_size2 += (wcslen(*p++) + 1)*sizeof(wchar_t);
+                }
+            } else if (cb->var_type == cli_wstring || cb->var_type == cli_pwstring) {
+                msg_size2 += len * sizeof(wchar_t);
+            } else if (cb->var_type >= cli_array_of_oid) {
+                msg_size2 += len * sizeof_type[cb->var_type - cli_array_of_oid];
+            } else { 
+                msg_size2 += len;
+            }
+        } else { 
+            switch (cb->var_type) { 
+            case cli_autoincrement:
+                s->autoincrement = true;
+                break;
+            case cli_asciiz:
+                msg_size2 += 4 + (strlen((char*)cb->var_ptr) + 1);
+                break;
+            case cli_pasciiz:
+                msg_size2 += 4 + (strlen(*(char**)cb->var_ptr) + 1);
+                break;
+            case cli_wstring:
+                msg_size2 += 4 + (wcslen((wchar_t*)cb->var_ptr) + 1)*sizeof(wchar_t);
+                break;
+            case cli_pwstring:
+                msg_size2 += 4 + (wcslen(*(wchar_t**)cb->var_ptr) + 1)*sizeof(wchar_t);
+                break;
+            case cli_array_of_string:
+            { 
+                char** p = (char**)cb->var_ptr;
+                int len;
+                msg_size2 += 4;
+                for (len = *cb->var_len; --len >= 0;) { 
+                    msg_size2 += (strlen(*p++) + 1);
+                }
+                break;
+            }
+            case cli_array_of_wstring:
+            { 
+                wchar_t** p = (wchar_t**)cb->var_ptr;
+                int len;
+                msg_size2 += 4;
+                for (len = *cb->var_len; --len >= 0;) { 
+                    msg_size2 += (wcslen(*p++) + 1)*sizeof(wchar_t);
+                }
+                break;
+            }
+            default:
+                if (cb->var_type >= cli_array_of_oid && cb->var_type < cli_array_of_string) {
+                    msg_size2 += 4 + *cb->var_len * sizeof_type[cb->var_type-cli_array_of_oid];
+                } else { 
+                    msg_size2 += sizeof_type[cb->var_type];
+                }
+            }
+        }
+    }
+    #endif
+       
+    size_t msg_size2 = record_num * record_size;
+    msg_size += msg_size2;  // must fix size per record 
+
+    //   批量发送数据 ---------
+    //   构建buffer , 填充数据 
+    dbSmallBuffer buf(msg_size);
+    char* p = buf;
+    cli_request* req = (cli_request*)p;
+    req->length  = (int)msg_size;
+    req->cmd     = cmd;
+    req->stmt_id = statement;
+    req->pack();
+    p += sizeof(cli_request);
+
+    if (cmd == cli_cmd_prepare_and_insert) { 
+        char* cmd = s->stmt;
+        while ((*p++ = *cmd++) != '\0');
+        *p++ = s->n_columns;
+        for (cb = s->columns; cb != NULL; cb = cb->next) { 
+            char* src = cb->name;
+            *p++ = cb->var_type;
+            while ((*p++ = *src++) != '\0');
+        }       
+    }
+
+    memcpy(p,records, msg_size2);
+    p += msg_size2;
+
+    #if 0
+    for (cb = s->columns; cb != NULL; cb = cb->next) { 
+        int n = 0;
+        char* src;
+        if (cb->get_fnc != NULL) { 
+            src = (char*)cb->arr_ptr;
+            n = cb->arr_len;
+        } else { 
+            src = (char*)cb->var_ptr;
+            if (cb->var_type >= cli_array_of_oid && (cb->var_type <= cli_array_of_string || cb->var_type == cli_array_of_wstring)) { 
+                n = *cb->var_len;       
+            }
+        }
+        if (cb->var_type >= cli_array_of_oid && (cb->var_type <= cli_array_of_string || cb->var_type == cli_array_of_wstring)) { 
+            p = pack4(p, n);
+            if (cb->var_type == cli_array_of_string) {
+                while (--n >= 0) {
+                    strcpy(p, *(char**)src);
+                    p += strlen(p) + 1;
+                    src += sizeof(char*);
+                }
+            } else if (cb->var_type == cli_array_of_wstring) {
+                while (--n >= 0) {
+                    wcscpy((wchar_t*)p, *(wchar_t**)src);
+                    p += (wcslen((wchar_t*)p) + 1)*sizeof(wchar_t);
+                    src += sizeof(wchar_t*);
+                }
+            } else {
+                switch (sizeof_type[cb->var_type-cli_array_of_oid]) { 
+                  case 2:
+                    while (--n >= 0) { 
+                        p = pack2(p, src);
+                        src += 2;
+                    }
+                    break;
+                  case 4:
+                    while (--n >= 0) { 
+                        p = pack4(p, src);
+                        src += 4;
+                    }
+                    break;
+                  case 8:
+                    while (--n >= 0) { 
+                        p = pack8(p, src);
+                        src += 8;
+                    }
+                    break;
+                  default:
+                    memcpy(p, src, n);
+                    p += n;
+                }
+            }
+        } else if (cb->var_type == cli_asciiz) {                
+            p = pack4(p, (int)strlen(src)+1);
+            while ((*p++ = *src++) != 0);
+        } else if (cb->var_type == cli_pasciiz) { 
+            src = *(char**)src;
+            p = pack4(p, (int)strlen(src)+1);
+            while ((*p++ = *src++) != 0);
+        } else if (cb->var_type == cli_wstring) {                
+            wchar_t* body = (wchar_t*)src;
+            p = pack4(p, (int)wcslen(body)+1);
+            wchar_t* dst = (wchar_t*)p;
+            while ((*dst++ = *body++) != 0);
+            p = (char*)dst;
+        } else if (cb->var_type == cli_pwstring) {                
+            wchar_t* body = *(wchar_t**)src;
+            p = pack4(p, (int)wcslen(body)+1);
+            wchar_t* dst = (wchar_t*)p;
+            while ((*dst++ = *body++) != 0);
+            p = (char*)dst;
+        } else if (cb->var_type == cli_rectangle) {
+            p = pack_rectangle(p, (cli_rectangle_t*)src);
+        } else if (cb->var_type != cli_autoincrement) { 
+            switch (sizeof_type[cb->var_type]) { 
+              case 2:
+                p = pack2(p, src);
+                break;
+              case 4:
+                p = pack4(p, src);
+                break;
+              case 8:
+                p = pack8(p, src);
+                break;
+              default:
+                *p++ = *src;
+            }
+        }
+    }
+    #endif 
+
+    assert((size_t)(p - buf.base()) == msg_size);
+    if (!s->session->sock->write(buf, msg_size)) { 
+        return cli_network_error;
+    }
+    return cli_ok;
+}
 
 //
-
 int cli_insert(int statement, cli_oid_t* oid)
 {
     int rc = cli_send_columns(statement, cli_cmd_insert);
@@ -805,9 +1034,10 @@ int cli_insert(int statement, cli_oid_t* oid)
 }
 
 
-int cli_insert_multy(int statement,void* record, int record_size, cli_oid_t* oid)
+int cli_insert_multy(int statement, void* records, int record_size, int record_num, cli_oid_t* oid)
 {
-    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
+//    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
+    int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy, records, record_size, record_num);
     if (rc == cli_ok) { 
         char buf[sizeof(cli_oid_t) + 8];
         statement_desc* s = statements.get(statement);
@@ -995,9 +1225,9 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
                     if (cb->var_type == cli_array_of_string) { 
                         char** s = (char**)dst;
                         len -= n;
-                        while (--n >= 0) {
-                            *s++ = p;
-                            p += strlen(p) + 1;
+                        while (--n >= 0) {          ////// ??????????????????   
+                            *s++ = p;               ////// ??????????????????   
+                            p += strlen(p) + 1;     ////// ??????????????????   
                         }
                         while (--len >= 0) { 
                             p += strlen(p) + 1;
