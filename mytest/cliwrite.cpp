@@ -42,6 +42,7 @@ subordinates array of reference to persons,
 blob array of int1);
 */
 
+#pragma pack (1)
 typedef struct Record
 {
     cli_int4_t id;           // id 作为主键唯一标识
@@ -65,8 +66,10 @@ typedef struct Record
     cli_int4_t value17;   
     cli_int4_t value18;   
     cli_int4_t value19; 
-    cli_int4_t value20;  
+    cli_int4_t value20; 
+    cli_int1_t value21[10];
 } Record;
+#pragma pack ()
 
 static cli_field_descriptor record_descriptor[] = {
     {cli_int4, cli_indexed, "id"},
@@ -90,8 +93,10 @@ static cli_field_descriptor record_descriptor[] = {
     {cli_int4, 0, "value17" },
     {cli_int4, 0, "value18" },
     {cli_int4, 0, "value19" },
-    {cli_int4, 0, "value20" }
+    {cli_int4, 0, "value20" },
+    {cli_array_of_int1,0,"value21"}
 };        
+        
 
 bool cli_column_bind(int statement, Record* p)
 {
@@ -127,6 +132,47 @@ bool cli_column_bind(int statement, Record* p)
         if( cli_ok != rc[i] )
         {
             fprintf(stderr, "cli_column bind failed with code %d    ,   i=%d \n", rc[i],i );
+            return false;
+        }
+    }
+    return true;
+}
+bool cli_column2_bind(int statement, Record* p)
+{
+    const int lens = 23;
+    int rc[lens]= {0,};
+    int i = 0 ;
+    static int len_val21 = sizeof(p->value21)/sizeof(p->value21[0]);
+
+    rc[i++] = cli_column(statement, "id", cli_int4, NULL, &(p->id));
+    rc[i++] = cli_column2(statement, "value",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value1",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value2",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value3",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value4",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value5",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value6",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value7",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value8",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value9",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value10",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value11",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value12",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value13",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value14",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value15",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value16",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value17",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value18",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value19",  cli_int4, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value20",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value21",  cli_array_of_int1, &len_val21, &(p->value21));
+
+    for (size_t i = 0; i < lens; i++)
+    {
+        if( cli_ok != rc[i] )
+        {
+            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
             return false;
         }
     }
@@ -224,7 +270,7 @@ int main()
         return EXIT_FAILURE;
     }
 
-    if(false == cli_column_bind(statement,&p))
+    if(false == cli_column2_bind(statement,&p))
     {
         fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
         return EXIT_FAILURE;
@@ -238,7 +284,7 @@ int main()
    diff_count diff;
    diff.start();
 
-    int count = 100 * 10 ;
+    int count = 1;// 100 * 10 ;
     int count_num = count;
     while (count > 0)
     { 
@@ -246,6 +292,8 @@ int main()
         // 逐条发送  
         p.id = count;
         p.value = count+1;
+        p.value21[0] = 0;
+        p.value21[1] = 1;
         rc = cli_insert(statement, &oid);
 
         count--;

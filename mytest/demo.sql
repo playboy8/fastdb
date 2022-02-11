@@ -22,10 +22,11 @@ create table Record (
      value17  int4,
      value18  int4,
      value19  int4,
-     value20  int4	
+     value20  int4,
+     value21  array of int1
  );
 create index on Record.id;
 select  from Record where id =-1;
-start server 'localhost:6100' 3
+start server 'localhost:6100' 2
 
 

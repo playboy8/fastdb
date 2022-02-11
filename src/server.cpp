@@ -157,7 +157,265 @@ int dbColumnBinding::unpackArray(char* dst, size_t& offs)
     return len;
 }
 
+int dbColumnBinding::unpackArray_multy(char* dst, size_t& offs)
+{
+    int len = this->len;
+    int i;
+    switch (cliType) { 
+      case cli_array_of_string: // not used 
+        { 
+            dbVarying* hdr = (dbVarying*)(dst + offs);
+            char* body = (char*)(hdr + len);
+            char* p = ptr + 4;
+            int relOffs = sizeof(dbVarying)*len;
+            offs += relOffs;
+            for (i = 0; i < len; i++) { 
+                strcpy(body, p);
+                int slen = (int)strlen(p)+1;
+                hdr->size = slen;
+                hdr->offs = relOffs;
+                body += slen;
+                relOffs += slen - sizeof(dbVarying);
+                p += slen;
+                hdr += 1;
+            }
+            offs += relOffs;
+        }
+        break;
+      case cli_array_of_wstring:   // not used 
+        { 
+            dbVarying* hdr = (dbVarying*)(dst + offs);
+            char* body = (char*)(hdr + len);
+            char* p = ptr + 4;
+            int relOffs = sizeof(dbVarying)*len;
+            offs += relOffs;
+            for (i = 0; i < len; i++) { 
+                wcscpy((wchar_t*)body, (wchar_t*)p);
+                int slen = (int)wcslen((wchar_t*)p)+1;
+                hdr->size = slen;
+                hdr->offs = relOffs;
+                body += slen*sizeof(wchar_t);
+                relOffs += slen*sizeof(wchar_t) - sizeof(dbVarying);
+                p += slen*sizeof(wchar_t);
+                hdr += 1;
+            }
+            offs += relOffs;
+        }
+        break;
+      case cli_array_of_decimal:   // not used 
+        {
+            char* p = ptr + 4;
+            for (i = 0; i < len; i++) { 
+                double val = 0.0;
+                sscanf(p, "%lf", &val);
+                p += strlen(p) + 1;
+                switch (fd->components->type) {
+                  case dbField::tpInt1:
+                    *(dst + offs) = (int1)val;
+                    offs += sizeof(int1);
+                    break;
+                  case dbField::tpInt2:
+                    *(int2*)(dst + offs) = (int2)val;
+                    offs += sizeof(int2);
+                    break;
+                  case dbField::tpInt4:
+                    *(int4*)(dst + offs) = (int4)val;
+                    offs += sizeof(int4);
+                    break;
+                  case dbField::tpInt8:
+                    *(db_int8*)(dst + offs) = (db_int8)val;
+                    offs += sizeof(db_int8);
+                    break;
+                  case dbField::tpReal4:
+                    *(real4*)(dst + offs) = (real4)val;
+                    offs += sizeof(real4);
+                    break;
+                  case dbField::tpReal8:
+                    *(real8*)(dst + offs) = val;
+                    offs += sizeof(real8);
+                    break;
+                }
+            }
+        }
+        break;
+      case cli_cstring:   // not used 
+        memcpy((char*)(dst + offs), ptr + 4, len-1);
+        offs += len;
+        *((char*)(dst + offs - 1)) = '\0';
+        break;
+      case cli_asciiz:      // not used 
+      case cli_pasciiz:   // not used 
+        memcpy((char*)(dst + offs), ptr + 4, len);
+        offs += len;
+        break;
+      case cli_wstring:    // not used 
+      case cli_pwstring:    // not used 
+        memcpy((char*)(dst + offs), ptr + 4, len*sizeof(wchar_t));
+        offs += len*sizeof(wchar_t);
+        break;
+      default:
+        if (cliType >= cli_array_of_oid) { 
+            switch (sizeof_type[cliType - cli_array_of_oid]) { 
+              case 1:
+                memcpy(dst + offs, ptr , len);
+                break;
+              case 2:
+                for (i = 0; i < len; i++) {
+                    unpack2(dst + offs + i*2, ptr  + i*2);
+                }
+             //  memcpy(dst+offs,  ptr, len* cb  )
+
+                break;
+              case 4:
+                for (i = 0; i < len; i++) {
+                    unpack4(dst + offs + i*4, ptr  + i*4);
+                }
+                break;
+              case 8:
+                for (i = 0; i < len; i++) {
+                    unpack8(dst + offs + i*8, ptr + i*8);
+                }
+                break;
+              default:
+                assert(false);
+            }
+        }
+        offs += len*sizeof_type[cliType - cli_array_of_oid];
+    }
+    return len;
+}
+
 void dbColumnBinding::unpackScalar(char* dst, bool insert)
+{
+    if (cliType == cli_autoincrement) { 
+        assert(fd->type == dbField::tpInt4);
+        if (insert) { 
+#ifdef AUTOINCREMENT_SUPPORT
+            *(int4*)(dst+fd->dbsOffs) = fd->defTable->autoincrementCount;
+#else
+            *(int4*)(dst+fd->dbsOffs) = ((dbTable*)fd->defTable->db->getRow(fd->defTable->tableId))->nRows;
+#endif
+        }
+        return;
+    } 
+    switch (fd->type) { 
+      case dbField::tpBool:
+      case dbField::tpInt1:
+        switch (sizeof_type[cliType]) { 
+          case 1:
+            *(dst + fd->dbsOffs) = *ptr;
+            break;
+          case 2:
+            *(dst + fd->dbsOffs) = (char)unpack2(ptr);
+            break;
+          case 4:
+            *(dst + fd->dbsOffs) = (char)unpack4(ptr);
+            break;
+          case 8:
+            *(dst + fd->dbsOffs) = (char)unpack8(ptr);
+            break;
+          default:
+            assert(false);
+        }
+        break;          
+      case dbField::tpInt2:
+        switch (sizeof_type[cliType]) { 
+          case 1:
+            *(int2*)(dst+fd->dbsOffs) = *ptr;
+            break;
+          case 2:
+            unpack2(dst+fd->dbsOffs, ptr);
+            break;
+          case 4:
+            *(int2*)(dst+fd->dbsOffs) = (int2)unpack4(ptr);
+            break;
+          case 8:
+            *(int2*)(dst+fd->dbsOffs) = (int2)unpack8(ptr);
+            break;
+          default:
+            assert(false);
+        }
+        break;          
+      case dbField::tpInt4:
+        switch (sizeof_type[cliType]) { 
+          case 1:
+            *(int4*)(dst+fd->dbsOffs) = *ptr;
+            break;
+          case 2:
+            *(int4*)(dst+fd->dbsOffs) = unpack2(ptr);
+            break;
+          case 4:
+            unpack4(dst+fd->dbsOffs, ptr);
+            break;
+          case 8:
+            *(int4*)(dst+fd->dbsOffs) = (int4)unpack8(ptr);
+            break;
+          default:
+            assert(false);
+        }
+        break;          
+      case dbField::tpInt8:
+        switch (sizeof_type[cliType]) { 
+          case 1:
+            *(db_int8*)(dst+fd->dbsOffs) = *ptr;
+            break;
+          case 2:
+            *(db_int8*)(dst+fd->dbsOffs) = unpack2(ptr);
+            break;
+          case 4:
+            *(db_int8*)(dst+fd->dbsOffs) = unpack4(ptr);
+            break;
+          case 8:
+            unpack8(dst+fd->dbsOffs, ptr);
+            break;
+          default:
+            assert(false);
+        }
+        break;          
+      case dbField::tpReal4:
+        switch (cliType) { 
+          case cli_real4:
+            unpack4(dst+fd->dbsOffs, ptr);
+            break;
+          case cli_real8:
+            {
+                real8 temp;
+                unpack8((char*)&temp, ptr);
+                *(real4*)(dst + fd->dbsOffs) = (real4)temp;
+            }
+            break;
+          default:
+            assert(false);
+        }
+        break;
+      case dbField::tpReal8:
+        switch (cliType) { 
+          case cli_real4:
+            {
+                real4 temp;
+                unpack4((char*)&temp, ptr);
+                *(real8*)(dst + fd->dbsOffs) = temp;
+            }
+            break;
+          case cli_real8:
+            unpack8(dst+fd->dbsOffs, ptr);
+            break;
+          default:
+            assert(false);
+        }
+        break;
+     case dbField::tpReference:
+        *(oid_t*)(dst + fd->dbsOffs) = unpack_oid(ptr);
+         break;
+      case dbField::tpRectangle:
+        unpack_rectangle((cli_rectangle_t*)(dst + fd->dbsOffs), ptr);
+        break;
+      default:
+        assert(false);
+    }
+}
+
+void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
 {
     if (cliType == cli_autoincrement) { 
         assert(fd->type == dbField::tpInt4);
@@ -1775,6 +2033,82 @@ char* dbServer::checkColumns(dbStatement* stmt, int n_columns,
     return data;
 }
 
+char* dbServer::checkColumns_multy(dbStatement* stmt, int n_columns, 
+                       dbTableDescriptor* desc, char* data, 
+                             int4& response, bool select)
+{
+    dbColumnBinding** cpp = &stmt->columns;
+    response = cli_ok;
+    while (--n_columns >= 0) {
+        int cliType = *data++;
+        char* columnName = data;
+        int array_size=0;
+        if(cliType >= cli_array_of_oid && (cliType <= cli_array_of_string || cliType == cli_array_of_wstring))
+        {
+            array_size = *data++;
+            columnName = data;
+        }
+
+        dbSymbolTable::add(columnName, tkn_ident, true);    
+        dbFieldDescriptor* fd = desc->findSymbol(columnName);
+        data += strlen(data) + 1;
+        if (fd != NULL) { 
+            if ((cliType == cli_any && select
+                 && (fd->type <= dbField::tpReference 
+                     || (fd->type == dbField::tpArray 
+                         && fd->components->type <= dbField::tpReference)))
+                || (cliType == cli_oid 
+                 && fd->type == dbField::tpReference)
+                || (cliType == cli_rectangle
+                    && fd->type == dbField::tpRectangle)
+                || (((cliType >= cli_bool && cliType <= cli_int8) || cliType == cli_autoincrement)
+                    && fd->type >= dbField::tpBool 
+                    && fd->type <= dbField::tpInt8)
+                || (cliType >= cli_real4 && cliType <= cli_real8 
+                    && fd->type >= dbField::tpReal4
+                    && fd->type <= dbField::tpReal8)
+                || ((cliType == cli_asciiz || cliType == cli_pasciiz || cliType == cli_cstring) 
+                    && fd->type == dbField::tpString)
+                || ((cliType == cli_wstring || cliType == cli_pwstring) && fd->type == dbField::tpWString)
+                || (cliType == cli_array_of_oid && 
+                    fd->type == dbField::tpArray && 
+                    fd->components->type == dbField::tpReference)
+                || (cliType == cli_decimal 
+                    && fd->type >= dbField::tpInt1 
+                    && fd->type <= dbField::tpReal8)
+                || (cliType == cli_datetime
+                    && ((fd->type == dbField::tpStructure
+                         && fd->components->type == dbField::tpInt4) 
+                        || fd->type ==  dbField::tpInt4))                   
+                || (cliType >= cli_array_of_bool
+                    && fd->type  == dbField::tpArray
+                    && fd->components->type <= dbField::tpReference
+                    && cliType-cli_array_of_oid == fd2cli_type_mapping[fd->components->type]))
+            {
+                dbColumnBinding* cb = new dbColumnBinding(fd, cliType);
+                if(array_size > 0 )
+                {
+                    cb->len = cb->array_num = array_size;
+                }
+                *cpp = cb;
+                cpp = &cb->next;
+
+                TRACE_MSG(("add Field '%s' , type:%d, cb->len:%d   \n", columnName,cliType, cb->array_num ));
+
+            } else { 
+                response = cli_incompatible_type;
+                break;
+            }
+        } else { 
+            TRACE_MSG(("Field '%s' not found\n", columnName));
+            response = cli_column_not_found;
+            break;
+        }
+    }
+    return data;
+}
+
+
 size_t dbServer::parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg)
 {
     size_t offs;
@@ -1827,8 +2161,53 @@ size_t dbServer::parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt
 }
 
 
-bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
+size_t dbServer::parser_data_from_multyinsert_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg)
 {
+    size_t offs;
+    dbColumnBinding* cb;
+    char* data = *msg;
+    offs = desc->fixedSize;
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        cb->ptr = data;
+        if (cb->cliType == cli_decimal) {
+            data += strlen(data) + 1;
+        } else if (cb->cliType == cli_datetime) {
+            data += 4;
+        } else if (cb->cliType == cli_autoincrement) {
+            ;
+        } else if (cb->cliType >= cli_asciiz && (cb->cliType <= cli_array_of_string || cb->cliType == cli_array_of_wstring)) {
+            // if(cb->var_type >= cli_array_of_oid && (cb->var_type <= cli_array_of_string || cb->var_type == cli_array_of_wstring))   // 
+            //int len = unpack4(data);
+            //cb->len = len;
+            //if (cb->cliType == cli_cstring) { 
+            //    cb->len += 1; // add '\0'
+            //}
+
+            assert(cb->cliType >= cli_array_of_oid && cb->cliType < cli_array_of_string );  // multy insert mode not support: cli_asciiz,cli_pasciiz,cli_cstring, cli_array_of_string
+            assert(cb->array_num > 0);
+            int len = cb->array_num;
+            
+            offs = DOALIGN(offs, cb->fd->components->alignment)
+                 + cb->array_num*cb->fd->components->dbsSize;
+
+            data += len*sizeof_type[cb->cliType-cli_array_of_oid];
+            //data += len*cb->fd->components->dbsSize;          
+        } else {
+            data += sizeof_type[cb->cliType];
+        }
+    }
+
+    TRACE_MSG(("data size in db:%d ,   data size in msg:%d,  record-fix-size:%d \n ",offs-desc->fixedSize , data-*msg, desc->fixedSize ));
+    stmt->recored_off = offs;
+    *msg = data;
+    return offs; 
+}
+
+
+bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len)
+{
+    const char* msg_head = data;
+    char* data_head = data;
     bool prepare = true;
     dbStatement* stmt = findStatement(session, stmt_id);
     dbTableDescriptor* desc = NULL;
@@ -1841,11 +2220,12 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
     size_t size;
     int    i, n_columns;
     dbFieldDescriptor* fd;
+    size_t record_num = 0;
 
     if (stmt == NULL) { 
         if (!prepare) { 
             response = cli_bad_statement;
-            goto return_response;
+            goto return_response_multy;
         }
         stmt = new dbStatement(stmt_id);
         stmt->next = session->stmts;
@@ -1855,7 +2235,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
             stmt->reset();
         } else if ((desc = stmt->table) == NULL) {
             response = cli_bad_descriptor;
-            goto return_response;
+            goto return_response_multy;
         }
     }
     if (prepare) { 
@@ -1864,28 +2244,51 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
             || session->scanner.get() != tkn_into
             || session->scanner.get() != tkn_ident) 
         {
+            TRACE_MSG(("statement: %s.",data));
+
             response = cli_bad_statement;
-            goto return_response;
+            goto return_response_multy;
         }
         desc = db->findTable(session->scanner.ident);
         if (desc == NULL) {     
             response = cli_table_not_found;
-            goto return_response;
+            goto return_response_multy;
         }
         data += strlen(data)+1;
         n_columns = *data++ & 0xFF;
 
         // parser clo name and create columebonding
-        data = checkColumns(stmt, n_columns, desc, data, response, false);
+        //data = checkColumns(stmt, n_columns, desc, data, response, false);
+        data = checkColumns_multy(stmt, n_columns, desc, data, response, false); // create columebonding (add array num).
         if (response != cli_ok) { 
-            goto return_response;
+            goto return_response_multy;
         }
+        data = unpack2((char*)(&stmt->recored_len),data);       
         stmt->table = desc;
     }
  
     // parser data pos, bonding data to cb struct.
+    data = unpack2((char*)(&record_num),data);
 
-    offs = parser_data_from_msg(desc, stmt, &data);
+    data_head = data;
+    offs = parser_data_from_multyinsert_msg(desc, stmt, &data);
+
+    TRACE_MSG((" server:: insert_multy()  stmt->recored_len=%d,  record_num=%d,   stmt->recored_off= %d \n", stmt->recored_len, record_num,stmt->recored_off ));
+
+    // check data 
+    if( data > data_head)
+    {
+         size_t cal_record_len = data - data_head;
+         size_t cal_all_data_len = data_len - (data_head - msg_head); 
+         if(cal_record_len != stmt->recored_len ||  (stmt->recored_len * record_num != cal_all_data_len ))  
+         {
+            response = cli_unsupported_type;
+            goto return_response_multy;
+         }
+         TRACE_MSG(("check msg data success ! \n"));
+    }
+
+
     size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
     db->beginTransaction(dbDatabase::dbExclusiveLock);
     db->modified = true;
@@ -1896,6 +2299,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
     dst = (char*)db->getRow(oid);    
     memset(dst + sizeof(dbRecord), 0, size - sizeof(dbRecord));
 
+    TRACE_MSG((" size= %d,  offs=%d. \n",size,offs));//  size= 124,  offs=118.
 
     // dump data to cb struct , and set offset 
     offs = desc->fixedSize;
@@ -1905,14 +2309,14 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
             offs = DOALIGN(offs, fd->components->alignment);
             ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)offs;
             ((dbVarying*)(dst + fd->dbsOffs))->size = cb->len;
-            cb->unpackArray(dst, offs);
+            cb->unpackArray_multy(dst, offs);
         } else { 
             cb->unpackScalar(dst, true);
         }
     }
 
     fd = desc->columns; 
-    for (i = (int)desc->nColumns; --i >= 0; fd = fd->next) { 
+    for (i = (int)desc->nColumns; --i >= 0; fd = fd->next) {
         if ((fd->type == dbField::tpString || fd->type == dbField::tpWString) 
             && ((dbVarying*)(dst + fd->dbsOffs))->offs == 0)
         {
@@ -1940,7 +2344,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data)
 /// should add auto precommit() 
 
     response = cli_ok;
-  return_response:
+  return_response_multy:
     pack4(reply_buf, response);
     if (desc == NULL) { 
         pack4(reply_buf+4, 0);
@@ -2052,6 +2456,8 @@ bool dbServer::insert(dbSession* session, int stmt_id, char* data, bool prepare)
         }
     }
     size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
+    TRACE_MSG((" size= %d,  offs=%d. \n",size,offs));
+
     db->beginTransaction(dbDatabase::dbExclusiveLock);
     db->modified = true;
     oid = db->allocateRow(desc->tableId, size);
@@ -2591,7 +2997,7 @@ void dbServer::serveClient()
                 online = insert(session, req.stmt_id, msg, false);
                 break;   
               case cli_cmd_insert_multy:
-                online = insert_multy(session, req.stmt_id, msg);
+                online = insert_multy(session, req.stmt_id, msg, msg.used_size());
                 break;                         
               case cli_cmd_describe_table:
                 online = describe_table(session, (char*)msg);

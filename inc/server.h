@@ -22,14 +22,18 @@ class dbColumnBinding {
     int                cliType;
     int                len;
     char*              ptr;
+    int                array_num; // numbers of array elements.
 
     int  unpackArray(char* dst, size_t& offs);
+    int  unpackArray_multy(char* dst, size_t& offs);
     void unpackScalar(char* dst, bool insert);
+    void unpackScalar_multy(char* dst, bool insert);
 
     dbColumnBinding(dbFieldDescriptor* field, int type) { 
         fd = field;
         cliType = type;
         next = NULL;
+        array_num = 0;
     }
 };
 
@@ -80,7 +84,8 @@ class dbStatement {
     int                 n_columns;
     dbParameterBinding* params;
     dbTableDescriptor*  table;
-    long                recored_size;
+    db_int2             recored_len; // per recode size in socket data
+    db_int2             recored_off; // per recode size in db
     long                curr_index;
     
     void reset();
@@ -93,7 +98,7 @@ class dbStatement {
         buf_size = 0;
         table = NULL;
         cursor = NULL;
-        recored_size = 0;
+        recored_len = 0;
         curr_index = 0;
     }
     ~dbStatement() { 
@@ -163,8 +168,9 @@ class FASTDB_DLL_ENTRY dbServer {
     bool remove_current(dbSession* session, int stmt_id);
     bool update(dbSession* session, int stmt_id, char* new_data);
     bool insert(dbSession* session, int stmt_id, char* data, bool prepare);
-    bool insert_multy(dbSession* session, int stmt_id, char* data);
+    bool insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len);
     size_t parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg);
+    size_t parser_data_from_multyinsert_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg);
     bool select(dbSession* session, int stmt_id, char* data, bool prepare);
     bool show_tables(dbSession* session); 
     bool describe_table(dbSession* session, char const* table);
@@ -175,7 +181,11 @@ class FASTDB_DLL_ENTRY dbServer {
     char* checkColumns(dbStatement* stmt, int n_columns, 
                        dbTableDescriptor* desc, char* data, 
                        int4& reponse, bool select);
-      
+
+    char* checkColumns_multy(dbStatement* stmt, int n_columns, 
+                       dbTableDescriptor* desc, char* data, 
+                       int4& reponse, bool select);
+
     dbStatement* findStatement(dbSession* stmt, int stmt_id);
 
   public:

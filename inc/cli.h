@@ -318,6 +318,13 @@ int FASTDB_DLL_ENTRY cli_column(int         statement,
                                 int*        var_len, 
                                 void*       var_ptr);
 
+// as  cli_column() bonding field with revert sequence, so this function bonding with normal sequence 
+int FASTDB_DLL_ENTRY cli_column2(int         statement,
+                                char const* column_name, 
+                                int         var_type, 
+                                int*        var_len, 
+                                void*       var_ptr);
+
 
 typedef void* (CLI_CALLBACK_CC *cli_column_set)(int var_type, void* var_ptr, int len);
 typedef void* (CLI_CALLBACK_CC *cli_column_get)(int var_type, void* var_ptr, int* len);

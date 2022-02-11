@@ -73,6 +73,8 @@ struct statement_desc {
     int                columns_len;
     char*              buf;
     size_t             buf_size;
+    cli_int2_t         record_len;// per record lenth in msg
+    cli_int1_t         array_num; // nums of array field in curr statement.
 
     void deallocate() { 
         delete[] stmt;
@@ -97,6 +99,8 @@ struct statement_desc {
         this->next = next;
         buf = NULL;
         buf_size = 0;
+        record_len = 0;
+        array_num = 0;
     }
     statement_desc() {}
 };    
@@ -273,6 +277,7 @@ int cli_statement(int session, char const* stmt_str)
     stmt->n_params = 0;
     stmt->n_columns = 0;
     stmt->columns_len = 0;
+    stmt->record_len = 0;
     stmt->oid = 0;
     stmt->next = s->stmts;
     stmt->updated = false;
@@ -362,6 +367,14 @@ int cli_column(int         statement,
     if (s == NULL) { 
         return cli_bad_descriptor;
     }
+    bool is_array = false;
+    if (var_type >= cli_array_of_oid && (var_type <= cli_array_of_string || var_type == cli_array_of_wstring))
+    {
+        if(NULL == var_len)
+            return cli_bad_descriptor;
+        is_array = true;
+    }
+
     s->prepared = false;
     column_binding* cb = new column_binding;
     int len = (int)strlen(column_name) + 1;
@@ -370,6 +383,52 @@ int cli_column(int         statement,
     cb->next = s->columns;
     s->columns = cb;
     s->n_columns += 1;
+    s->record_len += is_array ? *var_len *sizeof_type[var_type-cli_array_of_oid] : sizeof_type[var_type];
+    s->array_num += is_array ? 1 : 0;
+    strcpy(cb->name, column_name);
+    cb->var_type = var_type;
+    cb->var_len = var_len;
+    cb->var_ptr = var_ptr;
+    cb->arr_len = is_array ? *var_len : 0;
+    cb->set_fnc = NULL;
+    cb->get_fnc = NULL;
+    return cli_ok;
+}
+
+
+int cli_column2(int         statement,
+               char const* column_name, 
+               int         var_type, 
+               int*        var_len, 
+               void*       var_ptr)
+{
+    statement_desc* s = statements.get(statement);
+    if (s == NULL) { 
+        return cli_bad_descriptor;
+    }
+    bool is_array = false;
+    if (var_type >= cli_array_of_oid && (var_type <= cli_array_of_string || var_type == cli_array_of_wstring))
+    {
+        if(NULL == var_len)
+            return cli_bad_descriptor;
+        is_array = true;
+    }
+
+    s->prepared = false;
+
+    column_binding** pos = &(s->columns);
+    while (*pos)
+        pos = &((*pos)->next);
+    column_binding* cb = new column_binding;
+    int len = (int)strlen(column_name) + 1;
+    cb->name = new char[len];
+    s->columns_len += len;
+    cb->next = NULL;
+    *pos = cb;
+    //s->columns = cb;
+    s->n_columns += 1;
+    s->record_len += is_array ? *var_len *sizeof_type[var_type-cli_array_of_oid] : sizeof_type[var_type];
+    s->array_num += is_array ? 1 : 0;
     strcpy(cb->name, column_name);
     cb->var_type = var_type;
     cb->var_len = var_len;
@@ -399,6 +458,7 @@ int cli_array_column_ex(int               statement,
                         void*             user_data)
 {
     statement_desc* s = statements.get(statement);
+    bool is_array = false;
     if (s == NULL) { 
         return cli_bad_descriptor;
     }
@@ -406,6 +466,10 @@ int cli_array_column_ex(int               statement,
           || (var_type >= cli_wstring && var_type <= cli_array_of_wstring))) 
     {
         return cli_unsupported_type;
+    }
+    if (var_type >= cli_array_of_oid && (var_type <= cli_array_of_string || var_type == cli_array_of_wstring))
+    {
+        is_array = true;
     }
     s->prepared = false;
     column_binding* cb = new column_binding;
@@ -415,6 +479,7 @@ int cli_array_column_ex(int               statement,
     cb->next = s->columns;
     s->columns = cb;
     s->n_columns += 1;
+    s->array_num += is_array ? 1 : 0;
     strcpy(cb->name, column_name);
     cb->var_type = var_type;
     cb->var_len = NULL;
@@ -478,6 +543,7 @@ int cli_fetch(int statement, int for_update)
     req->pack();
     p += sizeof(cli_request);
 
+// 填充请求信息
     if (!stmt->prepared) { 
         *p++ = stmt->n_params;
         *p++ = stmt->n_columns;
@@ -774,7 +840,7 @@ static int cli_send_columns(int statement, int cmd)
 }
 
 // attention:  records must not contain any pointeer.
-static int cli_send_multy_columns(int statement, int cmd, void* records, int record_size, int record_num)
+static int cli_send_multy_columns(int statement, int cmd, void* records, int record_size, cli_int2_t record_num)
 {
     statement_desc* s = statements.get(statement);
     column_binding* cb;
@@ -797,8 +863,8 @@ static int cli_send_multy_columns(int statement, int cmd, void* records, int rec
         }
     } else { 
         if (!s->prepared) { 
-            cmd = cli_cmd_prepare_and_insert;
-            msg_size += 1 + s->stmt_len + s->n_columns + s->columns_len;
+           // cmd = cli_cmd_prepare_and_insert;                        // + array_num (for array size)   +   record_size   
+            msg_size += 1 + s->stmt_len + s->n_columns + s->columns_len + s->array_num + sizeof(s->record_len) ; 
         }
     }
     s->autoincrement = false;
@@ -878,8 +944,8 @@ static int cli_send_multy_columns(int statement, int cmd, void* records, int rec
     }
     #endif
        
-    size_t msg_size2 = record_num * record_size;
-    msg_size += msg_size2;  // must fix size per record 
+    size_t msg_size2 = record_num * s->record_len; // record_size;
+    msg_size += sizeof(record_num) +  msg_size2;  // must fix size per record 
 
     //   批量发送数据 ---------
     //   构建buffer , 填充数据 
@@ -892,16 +958,26 @@ static int cli_send_multy_columns(int statement, int cmd, void* records, int rec
     req->pack();
     p += sizeof(cli_request);
 
-    if (cmd == cli_cmd_prepare_and_insert) { 
+    if (!s->prepared) { 
         char* cmd = s->stmt;
         while ((*p++ = *cmd++) != '\0');
         *p++ = s->n_columns;
         for (cb = s->columns; cb != NULL; cb = cb->next) { 
             char* src = cb->name;
             *p++ = cb->var_type;
+            if(cb->var_type >= cli_array_of_oid && (cb->var_type <= cli_array_of_string || cb->var_type == cli_array_of_wstring))
+            {
+                // send array size;
+                *p++ = *cb->var_len; // max 255   // add array size info ......
+            }
             while ((*p++ = *src++) != '\0');
-        }       
+        } 
+        p = pack2(p,s->record_len);      
     }
+
+    p = pack2(p,record_num);
+   // *((cli_int2_t*)p) = record_num;  p +=2 ;
+   
 
     memcpy(p,records, msg_size2);
     p += msg_size2;
@@ -1033,10 +1109,71 @@ int cli_insert(int statement, cli_oid_t* oid)
     return rc;
 }
 
+static void init_data(int statement, void* records, int record_size, int record_num)
+{    
+    statement_desc* s = statements.get(statement);
+    column_binding* cb;
+    int i;
+    char* src = (char*)records;
+    assert(s);
+    for (cb = s->columns; cb != NULL; cb = cb->next) 
+    { 
+        int size= 0;
+        switch (cb->var_type) { 
+        case cli_autoincrement:
+            src += 0; break;
+        case cli_asciiz:
+            src += strlen(src) +1; break;
+        case cli_pasciiz:
+            src += sizeof(char*) ; break;
+        case cli_wstring:
+            src +=  wcslen((wchar_t*)src) +1; break;
+        case cli_pwstring:
+            src += sizeof(wchar_t*) ; break;
+        case cli_array_of_string: // not support
+        case cli_array_of_wstring: // not support
+        case cli_array_of_int1:
+            src += cb->arr_len;
+            break;
+        default:
+        
+            if (cb->var_type >= cli_array_of_oid && cb->var_type < cli_array_of_string) {
+                size = sizeof_type[cb->var_type-cli_array_of_oid];
+            } else { 
+                size = sizeof_type[cb->var_type];
+            }
+            for(i = (cb->arr_len > 0 ? cb->arr_len : 1); i > 0; i-- )
+            {
+                switch (size)
+                {
+                case 1: 
+                    src += size;                  
+                    break;
+                case 2:
+                    pack2(src, *((cli_int2_t*)src));
+                    break;
+                case 4:
+                    pack4(src, *((cli_int4_t*)src));
+                    break;
+                case 8:
+                    pack8(src,*((cli_int8_t*)src));
+                    break;            
+                default:
+                    assert(false);
+                    break;
+                }            
+            }
+            src += ((cb->arr_len > 0) ? cb->arr_len : 1)*size  ;
+        }    
+    }
+}
 
 int cli_insert_multy(int statement, void* records, int record_size, int record_num, cli_oid_t* oid)
 {
 //    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
+
+    init_data(statement, records, record_size, record_num);
+ //   printf(" init data ok \n");
     int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy, records, record_size, record_num);
     if (rc == cli_ok) { 
         char buf[sizeof(cli_oid_t) + 8];

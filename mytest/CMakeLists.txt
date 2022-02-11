@@ -22,7 +22,7 @@ endif()
 file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11 -D_DEBUG  -g -ggdb3  -Wno-invalid-offsetof -Wall  -O2 -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -O0  -D_DEBUG  -g -ggdb3  -Wno-invalid-offsetof -Wall  -O2 -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
 
 #g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -MT guess.o -MD -MP -MF .deps/guess.Tpo -c -o guess.o guess.cpp
 #/bin/sh ../libtool --tag=CXX   --mode=link g++  -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing   -o guess guess.o ../src/libfastdb.la -lpthread -lm 
