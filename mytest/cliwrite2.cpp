@@ -16,6 +16,7 @@
 #include <string.h>
 #include "../opt/public.h"
 
+
 typedef struct varbinary { 
     void* data;
     int   size;
@@ -254,12 +255,11 @@ int main()
         record_arry[i].value = i+1;
         record_arry[i].value1 = i+2;
 
-    //    pack4(record_arry[i].id);
-    //    pack4(record_arry[i].value);
-    //    pack4(record_arry[i].value1);
+       // pack4(record_arry[i].id);
+       // pack4(record_arry[i].value);
+       // pack4(record_arry[i].value1);
         memset(record_arry[i].value21, 5, sizeof(record_arry[i].value21));
     }
-
 
     fprintf(stderr, " record_len:%d,   record_num:%d,  \n", sizeof(record_arry[0]), record_num );
 
@@ -267,7 +267,6 @@ int main()
     int count_num = count;
     while (count > 0)
     { 
-
         // 逐条发送  
         p.id = count;
         p.value = count+1;

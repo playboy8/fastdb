@@ -1132,7 +1132,7 @@ static void init_data(int statement, void* records, int record_size, int record_
             src += sizeof(wchar_t*) ; break;
         case cli_array_of_string: // not support
         case cli_array_of_wstring: // not support
-        case cli_array_of_int1:
+       // case cli_array_of_int1:
             src += cb->arr_len;
             break;
         default:
@@ -1163,7 +1163,7 @@ static void init_data(int statement, void* records, int record_size, int record_
                     break;
                 }            
             }
-            src += ((cb->arr_len > 0) ? cb->arr_len : 1)*size  ;
+            //src += ((cb->arr_len > 0) ? cb->arr_len : 1)*size  ;
         }    
     }
 }
@@ -1172,7 +1172,7 @@ int cli_insert_multy(int statement, void* records, int record_size, int record_n
 {
 //    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
 
-    init_data(statement, records, record_size, record_num);
+ //   init_data(statement, records, record_size, record_num);
  //   printf(" init data ok \n");
     int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy, records, record_size, record_num);
     if (rc == cli_ok) { 

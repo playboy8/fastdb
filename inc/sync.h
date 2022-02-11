@@ -70,6 +70,10 @@ class FASTDB_DLL_ENTRY dbSmallBuffer {
         }
     }
 
+    size_t used_size(){
+      return used;
+    }
+
     operator char*() { return buf; }
     char* base() { return buf; }
 

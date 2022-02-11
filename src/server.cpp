@@ -436,13 +436,13 @@ void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
             *(dst + fd->dbsOffs) = *ptr;
             break;
           case 2:
-            *(dst + fd->dbsOffs) = (char)unpack2(ptr);
+            *(dst + fd->dbsOffs) = (char)(*((cli_int2_t*)(ptr)));
             break;
           case 4:
-            *(dst + fd->dbsOffs) = (char)unpack4(ptr);
+            *(dst + fd->dbsOffs) = (char)(*((cli_int4_t*)(ptr)));
             break;
           case 8:
-            *(dst + fd->dbsOffs) = (char)unpack8(ptr);
+            *(dst + fd->dbsOffs) =  (char)(*((cli_int8_t*)(ptr)));
             break;
           default:
             assert(false);
@@ -454,13 +454,13 @@ void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
             *(int2*)(dst+fd->dbsOffs) = *ptr;
             break;
           case 2:
-            unpack2(dst+fd->dbsOffs, ptr);
+            *(int2*)(dst+fd->dbsOffs) = *((cli_int2_t*)(ptr));
             break;
           case 4:
-            *(int2*)(dst+fd->dbsOffs) = (int2)unpack4(ptr);
+            *(int2*)(dst+fd->dbsOffs) = *((cli_int4_t*)(ptr));
             break;
           case 8:
-            *(int2*)(dst+fd->dbsOffs) = (int2)unpack8(ptr);
+            *(int2*)(dst+fd->dbsOffs) = *((cli_int8_t*)(ptr));
             break;
           default:
             assert(false);
@@ -472,13 +472,13 @@ void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
             *(int4*)(dst+fd->dbsOffs) = *ptr;
             break;
           case 2:
-            *(int4*)(dst+fd->dbsOffs) = unpack2(ptr);
+            *(int4*)(dst+fd->dbsOffs) = *((cli_int2_t*)(ptr));
             break;
           case 4:
-            unpack4(dst+fd->dbsOffs, ptr);
+            *(int4*)(dst+fd->dbsOffs) = *((cli_int4_t*)(ptr));
             break;
           case 8:
-            *(int4*)(dst+fd->dbsOffs) = (int4)unpack8(ptr);
+            *(int4*)(dst+fd->dbsOffs) = (cli_int4_t)(*((cli_int8_t*)(ptr)));
             break;
           default:
             assert(false);
@@ -490,13 +490,13 @@ void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
             *(db_int8*)(dst+fd->dbsOffs) = *ptr;
             break;
           case 2:
-            *(db_int8*)(dst+fd->dbsOffs) = unpack2(ptr);
+            *(db_int8*)(dst+fd->dbsOffs) = *((cli_int2_t*)(ptr));
             break;
           case 4:
-            *(db_int8*)(dst+fd->dbsOffs) = unpack4(ptr);
+            *(db_int8*)(dst+fd->dbsOffs) = *((cli_int4_t*)(ptr));
             break;
           case 8:
-            unpack8(dst+fd->dbsOffs, ptr);
+            *(db_int8*)(dst+fd->dbsOffs) = *((cli_int8_t*)(ptr));
             break;
           default:
             assert(false);
@@ -505,14 +505,11 @@ void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
       case dbField::tpReal4:
         switch (cliType) { 
           case cli_real4:
-            unpack4(dst+fd->dbsOffs, ptr);
+            *(real4*)(dst + fd->dbsOffs) =  *((cli_real4_t*)(ptr));
+            //unpack4(dst+fd->dbsOffs, ptr);
             break;
           case cli_real8:
-            {
-                real8 temp;
-                unpack8((char*)&temp, ptr);
-                *(real4*)(dst + fd->dbsOffs) = (real4)temp;
-            }
+            *(real4*)(dst + fd->dbsOffs) =  (real4)(*((cli_real8_t*)(ptr)));
             break;
           default:
             assert(false);
@@ -521,23 +518,19 @@ void dbColumnBinding::unpackScalar_multy(char* dst, bool insert)
       case dbField::tpReal8:
         switch (cliType) { 
           case cli_real4:
-            {
-                real4 temp;
-                unpack4((char*)&temp, ptr);
-                *(real8*)(dst + fd->dbsOffs) = temp;
-            }
+            *(real8*)(dst + fd->dbsOffs) =  *((cli_real4_t*)(ptr));
             break;
           case cli_real8:
-            unpack8(dst+fd->dbsOffs, ptr);
+            *(real8*)(dst + fd->dbsOffs) =  *((cli_real8_t*)(ptr));
             break;
           default:
             assert(false);
         }
         break;
      case dbField::tpReference:
-        *(oid_t*)(dst + fd->dbsOffs) = unpack_oid(ptr);
+        *(oid_t*)(dst + fd->dbsOffs) = *((oid_t*)(ptr));
          break;
-      case dbField::tpRectangle:
+      case dbField::tpRectangle:  /// not support
         unpack_rectangle((cli_rectangle_t*)(dst + fd->dbsOffs), ptr);
         break;
       default:
@@ -2311,7 +2304,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
             ((dbVarying*)(dst + fd->dbsOffs))->size = cb->len;
             cb->unpackArray_multy(dst, offs);
         } else { 
-            cb->unpackScalar(dst, true);
+            cb->unpackScalar_multy(dst, true);
         }
     }
 
