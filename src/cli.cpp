@@ -73,8 +73,8 @@ struct statement_desc {
     int                columns_len;
     char*              buf;
     size_t             buf_size;
-    cli_int2_t         record_len;// per record lenth in msg
-    cli_int1_t         array_num; // nums of array field in curr statement.
+    uint16_t           record_len;// per record lenth in msg
+    uint8_t            array_num; // nums of array field in curr statement.
 
     void deallocate() { 
         delete[] stmt;
@@ -840,7 +840,7 @@ static int cli_send_columns(int statement, int cmd)
 }
 
 // attention:  records must not contain any pointeer.
-static int cli_send_multy_columns(int statement, int cmd, void* records, int record_size, cli_int2_t record_num)
+static int cli_send_multy_columns(int statement, int cmd, void* records, u_int16_t record_num)
 {
     statement_desc* s = statements.get(statement);
     column_binding* cb;
@@ -1168,13 +1168,13 @@ static void init_data(int statement, void* records, int record_size, int record_
     }
 }
 
-int cli_insert_multy(int statement, void* records, int record_size, int record_num, cli_oid_t* oid)
+int cli_insert_multy(int statement, void* records, u_int16_t record_num, cli_oid_t* oid)
 {
 //    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
 
  //   init_data(statement, records, record_size, record_num);
  //   printf(" init data ok \n");
-    int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy, records, record_size, record_num);
+    int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy, records, record_num);
     if (rc == cli_ok) { 
         char buf[sizeof(cli_oid_t) + 8];
         statement_desc* s = statements.get(statement);

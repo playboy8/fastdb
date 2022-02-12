@@ -2204,6 +2204,63 @@ size_t dbServer::parser_data_from_multyinsert_msg(dbTableDescriptor* desc, dbSta
     return offs; 
 }
 
+bool dbServer::alloc_store(dbStatement* stmt, dbTableDescriptor* desc, size_t size, oid_t& oid)
+{   
+    dbFieldDescriptor* fd;
+    char* dst;
+    dbColumnBinding* cb;
+    int i;
+    size_t offs =0;
+
+    db->beginTransaction(dbDatabase::dbExclusiveLock);
+    db->modified = true;
+    oid = db->allocateRow(desc->tableId, size);
+#ifdef AUTOINCREMENT_SUPPORT
+    desc->autoincrementCount = ((dbTable*)db->getRow(desc->tableId))->count;
+#endif
+    dst = (char*)db->getRow(oid);    
+    memset(dst + sizeof(dbRecord), 0, size - sizeof(dbRecord));
+
+    // dump data to cb struct , and set offset 
+    offs = desc->fixedSize;
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        fd = cb->fd;
+        if (fd->type == dbField::tpArray || fd->type == dbField::tpString || fd->type == dbField::tpWString) {
+            offs = DOALIGN(offs, fd->components->alignment);
+            ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)offs;
+            ((dbVarying*)(dst + fd->dbsOffs))->size = cb->len;
+            cb->unpackArray_multy(dst, offs);
+        } else { 
+            cb->unpackScalar_multy(dst, true);
+        }
+    }
+
+    fd = desc->columns; 
+    for (i = (int)desc->nColumns; --i >= 0; fd = fd->next) {
+        if ((fd->type == dbField::tpString || fd->type == dbField::tpWString) 
+            && ((dbVarying*)(dst + fd->dbsOffs))->offs == 0)
+        {
+            ((dbVarying*)(dst + fd->dbsOffs))->size = 1;
+            ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)(size - sizeof(wchar_t));
+        }
+    }
+
+    // iesert collume data in a row
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        if (cb->fd->indexType & HASHED) { 
+            dbHashTable::insert(db, cb->fd, oid, 0);
+        }
+        if (cb->fd->indexType & INDEXED) { 
+            if (cb->fd->type == dbField::tpRectangle) { 
+                dbRtree::insert(db, cb->fd->tTree, oid, cb->fd->dbsOffs);
+            } else { 
+                dbTtree::insert(db, cb->fd->tTree, oid, 
+                                cb->fd->type, (int)cb->fd->dbsSize, cb->fd->_comparator, cb->fd->dbsOffs);
+            }
+        }
+    }
+    return true;
+}
 
 bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len)
 {
@@ -2219,9 +2276,9 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
     oid_t  oid = 0;
     size_t offs;
     size_t size;
-    int    i, n_columns;
+    int    i,j, n_columns;
     dbFieldDescriptor* fd;
-    size_t record_num = 0;
+    uint32_t record_num = 0;
 
     if (stmt == NULL) { 
         if (!prepare) { 
@@ -2289,60 +2346,16 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
          TRACE_MSG(("check msg data success ! \n"));
     }
 
-    for(i = 0; i < stmt->recored_len -1; i++ )
+    size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
+
+    TRACE_MSG((" size= %d,  offs=%d, j= %d \n",size,offs,j));//  size= 124,  offs=118.
+
+    alloc_store(stmt, desc, size, oid);
+
+    for(j = 1; j < record_num ; j++ )
     {
-        size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
-        db->beginTransaction(dbDatabase::dbExclusiveLock);
-        db->modified = true;
-        oid = db->allocateRow(desc->tableId, size);
-    #ifdef AUTOINCREMENT_SUPPORT
-        desc->autoincrementCount = ((dbTable*)db->getRow(desc->tableId))->count;
-    #endif
-        dst = (char*)db->getRow(oid);    
-        memset(dst + sizeof(dbRecord), 0, size - sizeof(dbRecord));
-
-        TRACE_MSG((" size= %d,  offs=%d. \n",size,offs));//  size= 124,  offs=118.
-
-        // dump data to cb struct , and set offset 
-        offs = desc->fixedSize;
-        for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
-            fd = cb->fd;
-            if (fd->type == dbField::tpArray || fd->type == dbField::tpString || fd->type == dbField::tpWString) {
-                offs = DOALIGN(offs, fd->components->alignment);
-                ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)offs;
-                ((dbVarying*)(dst + fd->dbsOffs))->size = cb->len;
-                cb->unpackArray_multy(dst, offs);
-            } else { 
-                cb->unpackScalar_multy(dst, true);
-            }
-        }
-
-        fd = desc->columns; 
-        for (i = (int)desc->nColumns; --i >= 0; fd = fd->next) {
-            if ((fd->type == dbField::tpString || fd->type == dbField::tpWString) 
-                && ((dbVarying*)(dst + fd->dbsOffs))->offs == 0)
-            {
-                ((dbVarying*)(dst + fd->dbsOffs))->size = 1;
-                ((dbVarying*)(dst + fd->dbsOffs))->offs = (int)(size - sizeof(wchar_t));
-            }
-        }
-
-        // iesert collume data in a row
-        for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
-            if (cb->fd->indexType & HASHED) { 
-                dbHashTable::insert(db, cb->fd, oid, 0);
-            }
-            if (cb->fd->indexType & INDEXED) { 
-                if (cb->fd->type == dbField::tpRectangle) { 
-                    dbRtree::insert(db, cb->fd->tTree, oid, cb->fd->dbsOffs);
-                } else { 
-                    dbTtree::insert(db, cb->fd->tTree, oid, 
-                                    cb->fd->type, (int)cb->fd->dbsSize, cb->fd->_comparator, cb->fd->dbsOffs);
-                }
-            }
-        }
-
         update_cb(desc,stmt,0);
+        alloc_store(stmt, desc, size, oid);
     }
 /// should add auto precommit() 
 

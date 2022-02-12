@@ -246,8 +246,9 @@ int main()
     diff_count diff;
     diff.start();
 
-    Record record_arry[10000];
-    int record_num = sizeof(record_arry)/sizeof(record_arry[0]);
+    u_int16_t record_num = 50000;
+    Record record_arry[record_num];
+    //u_int16_t record_num = sizeof(record_arry)/sizeof(record_arry[0]);
     memset(record_arry, 0, sizeof(record_arry));
     for(int i=0 ; i < record_num; i++)
     {
@@ -271,7 +272,7 @@ int main()
         p.id = count;
         p.value = count+1;
         //rc = cli_insert_multy(statement, &oid);
-        rc = cli_insert_multy(statement,record_arry, sizeof(record_arry[0]), record_num, &oid);
+        rc = cli_insert_multy(statement,record_arry, record_num, &oid);
 
         count--;
         if (rc != cli_ok) { 
