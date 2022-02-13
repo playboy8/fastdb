@@ -2086,7 +2086,7 @@ char* dbServer::checkColumns_multy(dbStatement* stmt, int n_columns,
                 *cpp = cb;
                 cpp = &cb->next;
 
-                TRACE_MSG(("add Field '%s' , type:%d, cb->len:%d   \n", columnName,cliType, cb->array_num ));
+             //   TRACE_MSG(("add Field '%s' , type:%d, cb->len:%d   \n", columnName,cliType, cb->array_num ));
 
             } else { 
                 response = cli_incompatible_type;
@@ -2198,7 +2198,7 @@ size_t dbServer::parser_data_from_multyinsert_msg(dbTableDescriptor* desc, dbSta
         }
     }
     // data size in db:10 ,   data size in msg:98,  record-fix-size:108
-    TRACE_MSG(("data size in db:%d ,   data size in msg:%d,  record-fix-size:%d \n ",offs-desc->fixedSize , data-*msg, desc->fixedSize ));
+ //   TRACE_MSG(("data size in db:%d ,   data size in msg:%d,  record-fix-size:%d \n ",offs-desc->fixedSize , data-*msg, desc->fixedSize ));
     stmt->recored_off = offs;
     *msg = data;
     return offs; 
@@ -2266,7 +2266,6 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
 {
     const char* msg_head = data;
     char* data_head = data;
-    bool prepare = true;
     dbStatement* stmt = findStatement(session, stmt_id);
     dbTableDescriptor* desc = NULL;
     dbColumnBinding* cb;
@@ -2279,6 +2278,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
     int    i,j, n_columns;
     dbFieldDescriptor* fd;
     uint32_t record_num = 0;
+    bool prepare = stmt ? (!stmt->prepared) : true; ;
 
     if (stmt == NULL) { 
         if (!prepare) { 
@@ -2302,7 +2302,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
             || session->scanner.get() != tkn_into
             || session->scanner.get() != tkn_ident) 
         {
-            TRACE_MSG(("statement: %s.",data));
+ //           TRACE_MSG(("statement: %s.",data));
 
             response = cli_bad_statement;
             goto return_response_multy;
@@ -2323,6 +2323,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
         }
         data = unpack2((char*)(&stmt->recored_len),data);       
         stmt->table = desc;
+        stmt->prepared = true;
     }
  
     // parser data pos, bonding data to cb struct.
@@ -2331,7 +2332,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
     data_head = data;
     offs = parser_data_from_multyinsert_msg(desc, stmt, &data);
 
-    TRACE_MSG((" server:: insert_multy()  stmt->recored_len=%d,  record_num=%d,   stmt->recored_off= %d \n", stmt->recored_len, record_num,stmt->recored_off ));
+//    TRACE_MSG((" server:: insert_multy()  stmt->recored_len=%d,  record_num=%d,   stmt->recored_off= %d \n", stmt->recored_len, record_num,stmt->recored_off ));
 
     // check data 
     if( data > data_head)
@@ -2343,12 +2344,12 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
             response = cli_unsupported_type;
             goto return_response_multy;
          }
-         TRACE_MSG(("check msg data success ! \n"));
+///         TRACE_MSG(("check msg data success ! \n"));
     }
 
     size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
 
-    TRACE_MSG((" size= %d,  offs=%d, j= %d \n",size,offs,j));//  size= 124,  offs=118.
+//    TRACE_MSG((" size= %d,  offs=%d, j= %d \n",size,offs,j));//  size= 124,  offs=118.
 
     alloc_store(stmt, desc, size, oid);
 
@@ -2358,6 +2359,8 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
         alloc_store(stmt, desc, size, oid);
     }
 /// should add auto precommit() 
+
+    db->precommit();
 
     response = cli_ok;
   return_response_multy:

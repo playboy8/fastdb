@@ -194,8 +194,8 @@ static cli_field_descriptor person_descriptor[] = {
 
 int main()
 {
-    //char* serverURL = "192.168.5.191:6100";
-    char* serverURL = "127.0.0.1:6100";
+    char* serverURL = "192.168.5.191:6100";
+  //  char* serverURL = "127.0.0.1:6100";
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
@@ -246,7 +246,7 @@ int main()
     diff_count diff;
     diff.start();
 
-    u_int16_t record_num = 50000;
+    u_int16_t record_num = 2;
     Record record_arry[record_num];
     //u_int16_t record_num = sizeof(record_arry)/sizeof(record_arry[0]);
     memset(record_arry, 0, sizeof(record_arry));
@@ -264,7 +264,7 @@ int main()
 
     fprintf(stderr, " record_len:%d,   record_num:%d,  \n", sizeof(record_arry[0]), record_num );
 
-    int count = 1 ;
+    int count = 50000 ;
     int count_num = count;
     while (count > 0)
     { 
@@ -280,10 +280,10 @@ int main()
             return EXIT_FAILURE;
         }     
 
-        if((rc = cli_precommit(session))!= cli_ok)
+     //   if((rc = cli_precommit(session))!= cli_ok)
         {
-            fprintf(stderr, "cli_precommit failed with code %d\n", rc);
-            return EXIT_FAILURE;            
+     //       fprintf(stderr, "cli_precommit failed with code %d\n", rc);
+     //       return EXIT_FAILURE;            
         }
 
     }

@@ -65,7 +65,8 @@ typedef struct Record
     cli_int4_t value17;   
     cli_int4_t value18;   
     cli_int4_t value19; 
-    cli_int4_t value20;  
+    cli_int4_t value20;
+    cli_int1_t value21[10];  
 } Record;
 
 static cli_field_descriptor record_descriptor[] = {
@@ -90,14 +91,16 @@ static cli_field_descriptor record_descriptor[] = {
     {cli_int4, 0, "value17" },
     {cli_int4, 0, "value18" },
     {cli_int4, 0, "value19" },
-    {cli_int4, 0, "value20" }
+    {cli_int4, 0, "value20" },
+    {cli_array_of_int1,0,"value21"}
 };        
 
 bool cli_column_bind(int statement, Record* p)
 {
-    const int lens = 22;
+    const int lens = 23;
     int rc[lens]= {0,};
     int i = 0 ;
+    static int len_val21 = sizeof(p->value21)/sizeof(p->value21[0]);
 
     rc[i++] = cli_column(statement, "id", cli_int4, NULL, &(p->id));
     rc[i++] = cli_column(statement, "value",  cli_int4, NULL, &(p->value));
@@ -121,6 +124,7 @@ bool cli_column_bind(int statement, Record* p)
     rc[i++] = cli_column(statement, "value18",  cli_int4, NULL, &(p->value1));
     rc[i++] = cli_column(statement, "value19",  cli_int4, NULL, &(p->value1));
     rc[i++] = cli_column(statement, "value20",  cli_int4, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value21",  cli_array_of_int1, &len_val21, &(p->value21));
 
     for (size_t i = 0; i < lens; i++)
     {
@@ -187,7 +191,8 @@ static cli_field_descriptor person_descriptor[] = {
 
 int main()
 {
-    char* serverURL = "127.0.0.1:6100";
+    //char* serverURL = "127.0.0.1:6100";
+    char* serverURL = "192.168.5.191:6100";
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
@@ -234,7 +239,7 @@ int main()
    diff_count diff;
    diff.start();
 
-    int count = 1;
+    int count = 100;
     int count_num = count;
     long long sum_select = 0;
     while (count > 0)

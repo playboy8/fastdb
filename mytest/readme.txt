@@ -155,6 +155,17 @@ MSDB:   FASTDB 无盘模式
 
 
 
+// multy insert mode     一个客户端插入 
+
+ 总条数          每次发送条数    发送线程数      延时ms          仅发送延迟      IPS
+  50000            50000            1             49              49          1020408.163265
+  1000000          100              1             3096                        322997.416021
+  600000           60               1             2797                        214515.552378
+  50000            20               1             629                         79491.255962
+  20000            1                1             4309                        4641.448132
+
+
+
 debug:
 g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -O0 -g  -Wno-invalid-offsetof -Wall -DDEBUG -MT subsql.o -MD -MP -MF .deps/subsql.Tpo -c -o subsql.o subsql.cpp
 g++ -O0 -g -Wno-invalid-offsetof -Wall -DDEBUG -o .libs/subsql subsql.o  ./.libs/libfastdb.so -lpthread -lm  -Wl,--rpath -Wl,/opt/fastdb64/lib

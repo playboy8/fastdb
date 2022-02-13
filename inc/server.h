@@ -86,6 +86,7 @@ class dbStatement {
     dbTableDescriptor*  table;
     db_int2             recored_len; // per recode size in socket data
     db_int2             recored_off; // per recode size in db
+    bool                prepared;  //
     long                curr_index;
     
     void reset();
@@ -100,6 +101,7 @@ class dbStatement {
         cursor = NULL;
         recored_len = 0;
         curr_index = 0;
+        prepared = false;
     }
     ~dbStatement() { 
         reset(); 
