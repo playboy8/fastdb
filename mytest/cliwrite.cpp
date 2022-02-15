@@ -46,11 +46,11 @@ blob array of int1);
 typedef struct Record
 {
     cli_int4_t id;           // id 作为主键唯一标识
-    cli_int4_t value;    
-    cli_int4_t value1;
-    cli_int4_t value2;        // value 作为保存值
+    cli_bool_t value;    
+    cli_int1_t value1;
+    cli_int2_t value2;        // value 作为保存值
     cli_int4_t value3;   
-    cli_int4_t value4; 
+    cli_int8_t value4; 
     cli_int4_t value5;   
     cli_int4_t value6;   
     cli_int4_t value7; 
@@ -73,11 +73,11 @@ typedef struct Record
 
 static cli_field_descriptor record_descriptor[] = {
     {cli_int4, cli_indexed, "id"},
-    {cli_int4, 0, "value"   },
-    {cli_int4, 0, "value1"  },
-    {cli_int4, 0, "value2"  },
+    {cli_bool, 0, "value"   },
+    {cli_int1, 0, "value1"  },
+    {cli_int2, 0, "value2"  },
     {cli_int4, 0, "value3"  },
-    {cli_int4, 0, "value4"  },
+    {cli_int8, 0, "value4"  },
     {cli_int4, 0, "value5"  },
     {cli_int4, 0, "value6"  },
     {cli_int4, 0, "value7"  },
@@ -96,47 +96,7 @@ static cli_field_descriptor record_descriptor[] = {
     {cli_int4, 0, "value20" },
     {cli_array_of_int1,0,"value21"}
 };        
-        
 
-bool cli_column_bind(int statement, Record* p)
-{
-    const int lens = 22;
-    int rc[lens]= {0,};
-    int i = 0 ;
-
-    rc[i++] = cli_column(statement, "id", cli_int4, NULL, &(p->id));
-    rc[i++] = cli_column(statement, "value",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value1",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value2",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value3",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value4",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value5",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value6",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value7",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value8",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value9",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value10",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value11",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value12",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value13",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value14",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value15",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value16",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value17",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column(statement, "value18",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value19",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column(statement, "value20",  cli_int4, NULL, &(p->value));
-
-    for (size_t i = 0; i < lens; i++)
-    {
-        if( cli_ok != rc[i] )
-        {
-            fprintf(stderr, "cli_column bind failed with code %d    ,   i=%d \n", rc[i],i );
-            return false;
-        }
-    }
-    return true;
-}
 bool cli_column2_bind(int statement, Record* p)
 {
     const int lens = 23;
@@ -144,28 +104,28 @@ bool cli_column2_bind(int statement, Record* p)
     int i = 0 ;
     static int len_val21 = sizeof(p->value21)/sizeof(p->value21[0]);
 
-    rc[i++] = cli_column(statement, "id", cli_int4, NULL, &(p->id));
-    rc[i++] = cli_column2(statement, "value",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value1",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value2",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value3",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value4",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value5",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value6",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value7",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value8",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value9",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value10",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value11",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value12",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value13",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value14",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value15",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value16",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value17",  cli_int4, NULL, &(p->value));
-    rc[i++] = cli_column2(statement, "value18",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value19",  cli_int4, NULL, &(p->value1));
-    rc[i++] = cli_column2(statement, "value20",  cli_int4, NULL, &(p->value));
+   rc[i++] = cli_column2(statement, "id", cli_int4, NULL, &(p->id));
+    rc[i++] = cli_column2(statement, "value",  cli_bool, NULL, &(p->value));
+    rc[i++] = cli_column2(statement, "value1",  cli_int1, NULL, &(p->value1));
+    rc[i++] = cli_column2(statement, "value2",  cli_int2, NULL, &(p->value2));
+    rc[i++] = cli_column2(statement, "value3",  cli_int4, NULL, &(p->value3));
+    rc[i++] = cli_column2(statement, "value4",  cli_int8, NULL, &(p->value4));
+    rc[i++] = cli_column2(statement, "value5",  cli_int4, NULL, &(p->value5));
+    rc[i++] = cli_column2(statement, "value6",  cli_int4, NULL, &(p->value6));
+    rc[i++] = cli_column2(statement, "value7",  cli_int4, NULL, &(p->value7));
+    rc[i++] = cli_column2(statement, "value8",  cli_int4, NULL, &(p->value8));
+    rc[i++] = cli_column2(statement, "value9",  cli_int4, NULL, &(p->value9));
+    rc[i++] = cli_column2(statement, "value10",  cli_int4, NULL, &(p->value10));
+    rc[i++] = cli_column2(statement, "value11",  cli_int4, NULL, &(p->value11));
+    rc[i++] = cli_column2(statement, "value12",  cli_int4, NULL, &(p->value12));
+    rc[i++] = cli_column2(statement, "value13",  cli_int4, NULL, &(p->value13));
+    rc[i++] = cli_column2(statement, "value14",  cli_int4, NULL, &(p->value14));
+    rc[i++] = cli_column2(statement, "value15",  cli_int4, NULL, &(p->value15));
+    rc[i++] = cli_column2(statement, "value16",  cli_int4, NULL, &(p->value16));
+    rc[i++] = cli_column2(statement, "value17",  cli_int4, NULL, &(p->value17));
+    rc[i++] = cli_column2(statement, "value18",  cli_int4, NULL, &(p->value18));
+    rc[i++] = cli_column2(statement, "value19",  cli_int4, NULL, &(p->value19));
+    rc[i++] = cli_column2(statement, "value20",  cli_int4, NULL, &(p->value20));
     rc[i++] = cli_column2(statement, "value21",  cli_array_of_int1, &len_val21, &(p->value21));
 
     for (size_t i = 0; i < lens; i++)
@@ -180,59 +140,9 @@ bool cli_column2_bind(int statement, Record* p)
 }
 
 
-void free_varbinary(varbinary* vb) 
-{
-     if (vb->data != NULL) { 
-        free(vb->data);
-        vb->data = NULL;
-    }
-}
-   
-void* CLI_CALLBACK_CC set_varbinary(int var_type, void* var_ptr, int len)
-{
-    varbinary* vb = (varbinary*)var_ptr;
-    free_varbinary(vb);
-    vb->size = len;
-    return vb->data = malloc(len);
-}
-
-void* CLI_CALLBACK_CC get_varbinary(int var_type, void* var_ptr, int* len)
-{
-    varbinary* vb = (varbinary*)var_ptr;
-    *len = vb->size;
-    return vb->data;
-}
-
-void* CLI_CALLBACK_CC set_subordinates(int var_type, void* var_ptr, int len)
-{
-    person* p = (person*)var_ptr;
-    if (p->subordinates != NULL) { 
-        free(p->subordinates);
-    }
-    p->n_subordinates = len;
-    p->subordinates = (cli_oid_t*)malloc(len*sizeof(cli_oid_t));
-    return p->subordinates;
-}
-
-void* CLI_CALLBACK_CC get_subordinates(int var_type, void* var_ptr, int* len)
-{
-    person* p = (person*)var_ptr;
-    *len = p->n_subordinates;
-    return p->subordinates;
-}
-
-static cli_field_descriptor person_descriptor[] = {
-    {cli_asciiz, cli_hashed, "name"},
-    {cli_int8, cli_indexed, "salary"},
-    {cli_pasciiz, 0, "address"}, 
-    {cli_real8, 0, "weight"}, 
-    {cli_array_of_oid, 0, "subordinates", "persons"},
-    {cli_array_of_int1, 0, "blob"}
-}; 
-
-
 int main()
 {
+   // char* serverURL = "192.168.5.191:6100";
     char* serverURL = "127.0.0.1:6100";
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
@@ -284,7 +194,7 @@ int main()
    diff_count diff;
    diff.start();
 
-    int count = 1;// 100 * 10 ;
+    int count = 2;// 100 * 10 ;
     int count_num = count;
     while (count > 0)
     { 
@@ -292,8 +202,18 @@ int main()
         // 逐条发送  
         p.id = count;
         p.value = count+1;
-        p.value21[0] = 0;
-        p.value21[1] = 1;
+        p.value1 = count+2;
+        p.value2 = count+3;
+        p.value3 = count+4;
+        p.value4 = count+5;
+        p.value5 = count+6;
+        p.value6 = count+7;
+        p.value7 = count+8;
+        p.value8 = count+9;
+
+      //  p.value21[0] = 0;
+      //  p.value21[1] = 1;
+        memset(p.value21,3,sizeof(p.value21));
         rc = cli_insert(statement, &oid);
 
         count--;

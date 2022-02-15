@@ -22,7 +22,7 @@ endif()
 file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
 # -D_DEBUG  -g -ggdb3 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -O2  -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -D_DEBUG  -g -ggdb3   -O1  -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
 
 #g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -MT guess.o -MD -MP -MF .deps/guess.Tpo -c -o guess.o guess.cpp
 #/bin/sh ../libtool --tag=CXX   --mode=link g++  -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing   -o guess guess.o ../src/libfastdb.la -lpthread -lm 
@@ -62,6 +62,10 @@ target_link_libraries(cliread   PUBLIC
                                 ${vendor_dir}/lib/libcli.so 
                                 pthread m  )
 
+add_executable( cliread2  ${sources} ${CMAKE_SOURCE_DIR}/cliread2.cpp )
+target_link_libraries(cliread2   PUBLIC
+                                ${vendor_dir}/lib/libcli.so 
+                                pthread m  )
 message(STATUS "\n\
      info :     ${CMAKE_SOURCE_DIR}\n
      sources:    ${sources} \n

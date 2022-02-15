@@ -73,7 +73,10 @@ struct statement_desc {
     int                columns_len;
     char*              buf;
     size_t             buf_size;
+    size_t             data_size;  // data size in buf.
+    size_t             pos; 
     uint16_t           record_len;// per record lenth in msg
+    size_t             rec_record_len;    
     uint8_t            array_num; // nums of array field in curr statement.
 
     void deallocate() { 
@@ -99,8 +102,11 @@ struct statement_desc {
         this->next = next;
         buf = NULL;
         buf_size = 0;
+        data_size = 0;
         record_len = 0;
         array_num = 0;
+        pos = 0;
+        rec_record_len=0;
     }
     statement_desc() {}
 };    
@@ -1217,6 +1223,21 @@ int cli_update(int statement)
     return rc;      
 }
 
+
+
+static void memory_dump(void *ptr, int len) {
+    int i;
+
+    for (i = 0; i < len; i++) {
+        if (i % 8 == 0 && i != 0)
+            printf(" ");
+        if (i % 16 == 0 && i != 0)
+            printf("\n");
+        printf("%02x ", *((uint8_t *)ptr + i));
+    }
+    printf("\n");
+}
+
 static int cli_get(int statement, int cmd, cli_oid_t value = 0)
 {
     statement_desc* s = statements.get(statement);
@@ -1256,22 +1277,18 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
         return response;// return 
     }
 
-//    printf("response=%d \n",response);
-
     if (s->buf_size < (size_t)response-4) { 
         delete[] s->buf;
         s->buf_size = response-4 < DEFAULT_BUF_SIZE ? DEFAULT_BUF_SIZE : response-4;
         s->buf = new char[s->buf_size];
     }
 
+
     char* buf = s->buf;
     if (!s->session->sock->read(buf, response-4)) { 
         return cli_network_error;
     }
-
-//    printf(" recive data finished ！ \n");
-
-//  解析收到的一条数据 
+    s->data_size = response-4;
 
     char* p = buf;
     int result = cli_ok;
@@ -1284,6 +1301,202 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
         }
     }
     p += sizeof(cli_oid_t);
+    for (column_binding* cb = s->columns; cb != NULL; cb = cb->next) { 
+        int type = *p++;
+        if (cb->var_type == cli_any) { 
+            cb->var_type = type;
+        } else { 
+            assert(cb->var_type == type);
+        }
+        if (cb->set_fnc != NULL) { 
+            int len = unpack4(p);
+            p += 4;
+            char* dst = (char*)cb->set_fnc(cb->var_type, cb->var_ptr, len, 
+                                           cb->name, statement, p, cb->user_data);
+            if (dst == NULL) {
+                continue;
+            }
+            if (cb->var_type == cli_array_of_string) { 
+                char** s = (char**)dst;
+                while (--len >= 0) {
+                    *s++ = p;
+                    p += strlen(p) + 1;
+                }
+            } else if (cb->var_type == cli_array_of_wstring) { 
+                wchar_t** s = (wchar_t**)dst;
+                while (--len >= 0) {
+                    *s++ = (wchar_t*)p;
+                    p += (wcslen((wchar_t*)p) + 1)*sizeof(wchar_t);
+                }
+            } else if (cb->var_type >= cli_array_of_oid && cb->var_type < cli_array_of_string) { 
+                switch (sizeof_type[cb->var_type-cli_array_of_oid]) { 
+                  case 2:                   
+                    while (--len >= 0) { 
+                        p = unpack2(dst, p);
+                        dst += 2;
+                    }
+                    break;
+                  case 4:
+                    while (--len >= 0) { 
+                        p = unpack4(dst, p);
+                        dst += 4;
+                    }
+                    break;
+                  case 8:
+                    while (--len >= 0) { 
+                        p = unpack8(dst, p);
+                        dst += 8;
+                    }
+                    break;
+                  default:
+                    memcpy(dst, p, len);
+                    p += len;
+                }
+            } else { 
+                memcpy(dst, p, len);
+                p += len;
+            }
+        } else { 
+            if (cb->var_type >= cli_asciiz && (cb->var_type <= cli_array_of_string || cb->var_type == cli_array_of_wstring)) { 
+                int len = unpack4(p);
+                p += 4;
+                char* dst = (char*)cb->var_ptr;
+                char* src = p;
+                int n = len;
+                if (cb->var_len != NULL) { 
+                    if (n > *cb->var_len) { 
+                        n = *cb->var_len;
+                    }
+                    *cb->var_len = n;
+                }
+                if (cb->var_type == cli_wstring || cb->var_type == cli_pwstring) { 
+                    if (cb->var_type == cli_pwstring) { 
+                        dst = *(char**)dst;
+                    }
+                    memcpy(dst, p, n*sizeof(wchar_t));
+                    p += len*sizeof(wchar_t);
+                } else if (cb->var_type >= cli_array_of_oid) { 
+                    if (cb->var_type == cli_array_of_string) { 
+                        char** s = (char**)dst;
+                        len -= n;
+                        while (--n >= 0) {  
+                            *s++ = p;          
+                            p += strlen(p) + 1;  
+                        }
+                        while (--len >= 0) { 
+                            p += strlen(p) + 1;
+                        }
+                    } else if (cb->var_type == cli_array_of_wstring) { 
+                        wchar_t** s = (wchar_t**)dst;
+                        len -= n;
+                        while (--n >= 0) {
+                            *s++ = (wchar_t*)p;
+                            p += (wcslen((wchar_t*)p) + 1)*sizeof(wchar_t);
+                        }
+                        while (--len >= 0) { 
+                            p += (wcslen((wchar_t*)p) + 1)*sizeof(wchar_t);
+                        }
+                    } else { 
+                        switch (sizeof_type[cb->var_type-cli_array_of_oid]) { 
+                          case 2:                   
+                            while (--n >= 0) { 
+                                src = unpack2(dst, src);
+                                dst += 2;
+                            }
+                            p += len*2;
+                            break;
+                          case 4:
+                            while (--n >= 0) { 
+                                src = unpack4(dst, src);
+                                dst += 4;
+                            }
+                            p += len*4;
+                            break;
+                          case 8:
+                            while (--n >= 0) { 
+                                src = unpack8(dst, src);
+                                dst += 8;
+                            }
+                            p += len*8;
+                            break;
+                          default:
+                            memcpy(dst, p, n);
+                            p += len;
+                        }
+                    }
+                } else { 
+                    if (cb->var_type == cli_pasciiz) { 
+                        dst = *(char**)dst;
+                    }
+                    memcpy(dst, p, n);
+                    p += len;
+                }
+            } else if (cb->var_type == cli_rectangle) { 
+                p = unpack_rectangle((cli_rectangle_t*)cb->var_ptr, p);
+            } else { 
+                switch (sizeof_type[cb->var_type]) { 
+                  case 2:
+                    p = unpack2((char*)cb->var_ptr, p);
+                    break;
+                  case 4:
+                    p = unpack4((char*)cb->var_ptr, p);
+                    break;
+                  case 8:
+                    p = unpack8((char*)cb->var_ptr, p);
+                    break;
+                  default:
+                    *(char*)cb->var_ptr = *p++;
+                }
+            }
+        }
+    }
+
+    s->rec_record_len = (p - s->buf) - sizeof(cli_oid_t);
+    s->pos = p - s->buf;
+    s->updated = false;
+
+    size_t remain = s->data_size - s->pos;
+    if( 0 != ((remain)% s->rec_record_len))
+    {
+         printf(" parser data failed!  remain size= %d, s->rec_record_le=%d .\n", remain, s->rec_record_len);
+         result = cli_runtime_error;
+    }
+    else
+    {
+        int size = remain/s->rec_record_len;
+        if(size>0) s->oid -= size;
+    }
+    return result;
+}
+
+int cli_get_first(int statement)
+{
+    return cli_get(statement, cli_cmd_get_first);
+}
+
+int cli_get_multy(int statement)
+{
+    return cli_get(statement, cli_cmd_get_multy);
+}
+
+int cli_parser_next(int statement)
+{
+    int result = cli_ok;
+    statement_desc* s = statements.get(statement);
+    if (s == NULL) { 
+        return cli_bad_descriptor;
+    }
+    if (!s->prepared) { 
+        return cli_not_fetched;
+    }
+    char* p = s->buf+ s->pos;
+    size_t remain = s->data_size - s->pos;
+    if( remain <=0 ||  0 != remain%(s->rec_record_len)) 
+    {
+        result = cli_runtime_error;
+        return result;
+    }
+
     for (column_binding* cb = s->columns; cb != NULL; cb = cb->next) { 
         int type = *p++;
         if (cb->var_type == cli_any) { 
@@ -1433,18 +1646,10 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
             }
         }
     }
+    s->pos = p - s->buf ;
     s->updated = false;
+    s->oid += 1;
     return result;
-}
-
-int cli_get_first(int statement)
-{
-    return cli_get(statement, cli_cmd_get_first);
-}
-
-int cli_get_multy(int statement)
-{
-    return cli_get(statement, cli_cmd_get_multy);
 }
 
 int cli_get_last(int statement)
