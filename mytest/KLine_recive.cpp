@@ -139,12 +139,12 @@ int fetch_new_data(int statement, int session ,KLine *p, cli_oid_t oid , cli_int
                      show_data(p);
                 }   
                 else
-                     std::cout << "cli_get_first error,  rc:" << int(rc) <<   std::endl;                      
+                     std::cout << "cli_get_last error,  rc:" << int(rc) <<   std::endl;                      
             }
             else
             {
               if( old_rc == rc)
-                 std::cout << "server has no update, cli_seek rc:" << int(rc)   <<  std::endl;
+                 std::cout << "fetech data: server has no update, rc:" << int(rc)   <<  std::endl;
               else if( rc < 0) std::cout << "seek error \n" << std::endl;
             }
             cli_precommit(session);
@@ -155,17 +155,27 @@ int fetch_new_data(int statement, int session ,KLine *p, cli_oid_t oid , cli_int
 }
 
 
-int main()
+int main(int arg, char **argv)
 {
-  //  char* serverURL = "192.168.5.191:6300";
-    char* serverURL = "127.0.0.1:6300";
     char_t* databaseName = _T("testpar2");
     int session, statement, statement2, rc ;
 
     cli_oid_t oid;
     KLine p;
     cli_int4_t start_stockid;
-    cli_int8_t update_time;  
+    cli_int8_t update_time; 
+    char* serverURL ;
+
+    if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
+    {
+        serverURL = "192.168.5.191:6300" ;
+        std::cout << " CLI mode , IP: " << serverURL << "\n";
+    }    
+    else
+    {
+        serverURL = "127.0.0.1:6300";
+        std::cout << " Local mode , IP: " << serverURL << "\n";
+    } 
  
 
     session = cli_open(serverURL, 10, 1);
