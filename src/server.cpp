@@ -1263,7 +1263,7 @@ bool dbServer::fetch(dbSession* session, dbStatement* stmt, oid_t result)
     return session->sock->write(stmt->buf, msg_size);
 }
 
-// cal ont record data size 
+// cal one record data size 
 size_t get_msg_size(char* data, dbStatement* stmt )
 {
   dbColumnBinding* cb;
@@ -1627,13 +1627,11 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
     }
     size_t msg_size = sizeof(cli_oid_t) + 4;
 
-// one record
     char* data = (char*)db->getRow(stmt->cursor->currId);
 // parser data size , and  copy to buf.
-  size_t per_size = get_msg_size(data,stmt);
-  size_t totl_size = CLI_DEFAULT_MULT * per_size; 
-  msg_size += totl_size; 
-//  TRACE_MSG(("per_size= '%d'  msg_size='%d' \n", per_size, msg_size));
+    size_t per_size = get_msg_size(data,stmt);
+    size_t totl_size = CLI_DEFAULT_MULT * per_size; 
+    msg_size += totl_size; 
 
 // reloc buf      
     if ((size_t)stmt->buf_size < msg_size) { 
@@ -1658,11 +1656,9 @@ bool dbServer::fetch_multy(dbSession* session, dbStatement* stmt, oid_t result)
         return true;
       }
     }
-//    TRACE_MSG((" CLI_DEFAULT_MULT  parser_fill_msg_data() finished i=%d \n",i ));
-    
+ 
     size_t totl_size2 = i * per_size;
     msg_size = sizeof(cli_oid_t) + 4 + totl_size2 ;
-
 
     assert(ret);
     assert((size_t)(p - stmt->buf) == msg_size);
@@ -2361,7 +2357,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
 /// should add auto precommit() 
 
     db->precommit();
-
+  //  db->commit();
     response = cli_ok;
   return_response_multy:
     pack4(reply_buf, response);
@@ -2475,7 +2471,7 @@ bool dbServer::insert(dbSession* session, int stmt_id, char* data, bool prepare)
         }
     }
     size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
-    TRACE_MSG((" size= %d,  offs=%d. \n",size,offs));
+//    TRACE_MSG((" size= %d,  offs=%d. \n",size,offs));
 
     db->beginTransaction(dbDatabase::dbExclusiveLock);
     db->modified = true;

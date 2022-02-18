@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../opt/public.h"
-
+#include <unistd.h>
  
 
 #pragma pack (1)
@@ -115,22 +115,26 @@ bool cli_column2_bind(int statement, Record* p)
     return true;
 }
 
-
-
-
-int main()
-{
-    char* serverURL = "127.0.0.1:6100";
-   // char* serverURL = "192.168.5.191:6100";
+int main(int arg, char **argv)
+{      
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
-    int i, n, salary;
     int table_created = 0;
-    char name[256];
-    char address[256];
     cli_oid_t oid;
     Record p;
+    char* serverURL ;
+
+    if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
+    {
+        serverURL = "192.168.5.191:6100" ;
+        std::cout << " CLI mode , IP: " << serverURL << "\n";
+    }    
+    else
+    {
+        serverURL = "127.0.0.1:6100";
+        std::cout << " Local mode , IP: " << serverURL << "\n";
+    }
 
     session = cli_open(serverURL, 10, 1);
     if (session == cli_bad_address) { 
@@ -142,111 +146,89 @@ int main()
         return EXIT_FAILURE;
     }
 
-#if 1
-    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor),  record_descriptor);
-
-    if (rc == cli_ok) { 
-	table_created = 1;
-    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
-	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
-	return EXIT_FAILURE;
-    } 
-#endif
     statement = cli_statement(session, "select * from Record");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
     }
 
-    if(false == cli_column2_bind(statement,&p))
-    {
-        fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
-        return EXIT_FAILURE;
-    }
+   if(false == cli_column2_bind(statement,&p))
+   {
+       fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
+       return EXIT_FAILURE;
+   }
 
-    int a , b ;
-    diff_count diff;
-    diff.start();
-
-    int count = 1;
+  
+#if 1
+    int count = 2;
     int count_num = count;
     long long sum_select = 0;
-    while (count > 0)
-    { 
-        rc = cli_fetch(statement, cli_view_only);
-        count--;
-        if (rc < 0 ) { 
-            fprintf(stderr, "cli_fetch failed with code %d\n", rc);
-            return EXIT_FAILURE;
-        }  
-        else
-        {          
-            sum_select += rc;
-        }   
-        
-       // rc = cli_get_multy(statement);
-      //  rc = cli_get_first(statement);
-       // std::cout << " rc:" <<  rc << std::endl;
+ 
+    rc = cli_fetch(statement, cli_view_only);// cli_view_only);
+    if (rc < 0 ) { 
+        fprintf(stderr, "cli_fetch failed with code %d\n", rc);
+        return EXIT_FAILURE;
+    }  
+    else
+    {          
+        sum_select += rc;
+    }   
 
-        rc = cli_get_first(statement);
-        std::cout << " rc:" <<  rc << std::endl;
-        while ((rc = cli_get_next(statement)) == cli_ok)
-        {
-           // std::cout << "p.id:" << p.id << "\t p.value:" << p.value << "\t p.value1:" << p.value1 << std::endl; 
-           // printf("\t%d   %d     %d     %d   \n", p.id,   p.value ,  p.value1 ,  p.value2 );
-            std::cout << "new record:\n id    \t" <<  int(p.id); 
-            std::cout << "\n value \t" <<  int(p.value);    
-            std::cout << "\n value1\t" <<  int(p.value1);
-            std::cout << "\n value3\t" <<  p.value3;   
-            std::cout << "\n value4\t" <<  p.value4; 
-            std::cout << "\n value5\t" <<  p.value5;   
-            std::cout << "\n value6\t" <<  p.value6;   
-            std::cout << "\n value7\t" <<  p.value7; 
-            std::cout << "\n value8\t" <<  p.value8;  
-            std::cout << "\n value9\t" <<  p.value9;   
-            std::cout << "\n value10\t" <<  p.value10; 
-            std::cout << "\n value11\t" <<  p.value11;  
-            std::cout << "\n value12\t" <<  p.value12;   
-            std::cout << "\n value13\t" <<  p.value13; 
-            std::cout << "\n value14\t" <<  p.value14;  
-            std::cout << "\n value15\t" <<  p.value15;   
-            std::cout << "\n value16\t" <<  p.value16; 
-            std::cout << "\n value17\t" <<  p.value17;   
-            std::cout << "\n value18\t" <<  p.value18;   
-            std::cout << "\n value19\t" <<  p.value19; 
-            std::cout << "\n value20\t" <<  p.value20; 
-            std::cout << "\n value21\t" <<  (char*)(p.value21);
-            std::cout << "\n";
-        }    
-    }
+    std::cout << "fitech data nums :" <<  rc << "\n";
+    if ((rc = cli_get_last(statement)) == cli_ok)
+    {
+        // std::cout << "p.id:" << p.id << "\t p.value:" << p.value << "\t p.value1:" << p.value1 << std::endl; 
+        // printf("\t%d   %d     %d     %d   \n", p.id,   p.value ,  p.value1 ,  p.value2 );
+        std::cout << "last record:\n id    \t" <<  int(p.id); 
+        std::cout << "\n value \t" <<  int(p.value);    
+        std::cout << "\n value1\t" <<  int(p.value1);
+        std::cout << "\n value3\t" <<  p.value3;   
+        std::cout << "\n value4\t" <<  p.value4; 
+        std::cout << "\n value5\t" <<  p.value5;   
+        std::cout << "\n value6\t" <<  p.value6;   
+        std::cout << "\n value7\t" <<  p.value7; 
+        std::cout << "\n value8\t" <<  p.value8;  
+        std::cout << "\n value9\t" <<  p.value9;   
+        std::cout << "\n value10\t" <<  p.value10; 
+        std::cout << "\n value11\t" <<  p.value11;  
+        std::cout << "\n value12\t" <<  p.value12;   
+        std::cout << "\n value13\t" <<  p.value13; 
+        std::cout << "\n value14\t" <<  p.value14;  
+        std::cout << "\n value15\t" <<  p.value15;   
+        std::cout << "\n value16\t" <<  p.value16; 
+        std::cout << "\n value17\t" <<  p.value17;   
+        std::cout << "\n value18\t" <<  p.value18;   
+        std::cout << "\n value19\t" <<  p.value19; 
+        std::cout << "\n value20\t" <<  p.value20; 
+        std::cout << "\n value21\t" <<  (char*)(p.value21);
+        std::cout << "\n";
+    } 
+    rc =cli_precommit(session);  
+    //sleep(6);     
 
+#endif 
 
-
-
-    diff.add_snap();
-    diff.show_diff(a,b, true);
-    printf(" IPS:  %8f      totle_select_count:%lld  \n", sum_select*1.0 * 1000  /  a ,  sum_select );
-
-
+#if 1
     rc = cli_free(statement);
     if (rc != cli_ok) { 
         fprintf(stderr, "cli_free failed with code %d\n", rc);
         return EXIT_FAILURE;
     }
-
-
+#endif
+ 
     if (table_created) { 
 	rc = cli_drop_table(session, "Record");
 	if (rc != cli_ok) { 
 	    fprintf(stderr, "cli_drop_table failed with code %d\n", rc);
 	    return EXIT_FAILURE;
-	}
+	    }
     }    
 
     if ((rc = cli_close(session)) != cli_ok) { 
         fprintf(stderr, "cli_close failed with code %d\n", rc);
         return EXIT_FAILURE;	
     }
+ 
     printf("*** CLI test sucessfully passed!\n");
     return EXIT_SUCCESS;
 }

@@ -23,11 +23,11 @@ public:
     ~Record(){}
 public:
     int4 id;           // id 作为主键唯一标识
-    int4 value;    
-    int4 value1;
-    int4 value2;        // value 作为保存值
+    bool value;    
+    int1 value1;
+    int2 value2;        // value 作为保存值
     int4 value3;   
-    int4 value4; 
+    int8 value4; 
     int4 value5;   
     int4 value6;   
     int4 value7; 
@@ -44,7 +44,8 @@ public:
     int4 value18;   
     int4 value19; 
     int4 value20;  
- 
+
+
     TYPE_DESCRIPTOR( ( KEY( id, INDEXED  ),
                        FIELD( value ),                     
                       FIELD( value1) ,

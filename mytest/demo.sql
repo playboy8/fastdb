@@ -2,11 +2,11 @@ open 'testpar';
 create table Record (
 
      id       int4,
-     value    int4,
-     value1   int4,
-     value2   int4,
+     value    bool,
+     value1   int1,
+     value2   int2,
      value3   int4,
-     value4   int4,
+     value4   int8,
      value5   int4,
      value6   int4,
      value7   int4,
@@ -27,6 +27,26 @@ create table Record (
  );
 create index on Record.id;
 select  from Record where id =-1;
-start server 'localhost:6100' 2
+
+
+create table KLine (
+
+     stock_id       int4,
+     market_time    int8,
+     update_time    int8,
+     Open           real8,
+     High           real8,
+     Low            real8,
+     Close          real8,
+     volume         int8,
+     turnover       real8,
+     value1  array of int1
+ );
+create index on KLine.stock_id;
+create index on KLine.market_time;
+
+
+start server 'localhost:6100' 4
+autocommit on
 
 

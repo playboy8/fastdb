@@ -66,6 +66,18 @@ add_executable( cliread2  ${sources} ${CMAKE_SOURCE_DIR}/cliread2.cpp )
 target_link_libraries(cliread2   PUBLIC
                                 ${vendor_dir}/lib/libcli.so 
                                 pthread m  )
+
+add_executable( KLine_pro  ${sources} ${CMAKE_SOURCE_DIR}/KLine_produce.cpp )
+target_link_libraries(KLine_pro   PUBLIC
+                                ${vendor_dir}/lib/libcli.so 
+                                pthread m  )
+                                
+add_executable( KLine_recive  ${sources} ${CMAKE_SOURCE_DIR}/KLine_recive.cpp )
+target_link_libraries(KLine_recive   PUBLIC
+                                ${vendor_dir}/lib/libcli.so 
+                                pthread m  )
+
+                                
 message(STATUS "\n\
      info :     ${CMAKE_SOURCE_DIR}\n
      sources:    ${sources} \n

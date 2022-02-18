@@ -15,32 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../opt/public.h"
+#include <unistd.h> 
 
-typedef struct varbinary { 
-    void* data;
-    int   size;
-} varbinary;
-
-typedef struct  person { 
-    char        name[64];
-    cli_int8_t  salary;
-
-    char*       address;
-    cli_real8_t weight;
-    cli_int4_t  n_subordinates;
-    cli_oid_t*  subordinates;
-    varbinary   blob;
-} person;
-
-/*
-(
-name    string, 
-salary  int8, 
-address string, 
-weight  real8, 
-subordinates array of reference to persons,
-blob array of int1);
-*/
 
 #pragma pack (1)
 typedef struct Record
@@ -140,19 +116,27 @@ bool cli_column2_bind(int statement, Record* p)
 }
 
 
-int main()
+int main(int arg, char **argv)
 {
-   // char* serverURL = "192.168.5.191:6100";
-    char* serverURL = "127.0.0.1:6100";
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
-    int i, n, salary;
     int table_created = 0;
-    char name[256];
-    char address[256];
+
     cli_oid_t oid;
     Record p;
+    char* serverURL ;
+    
+    if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
+    {
+        serverURL = "192.168.5.191:6100" ;
+        std::cout << " CLI mode , IP: " << serverURL << "\n";
+    }    
+    else
+    {
+        serverURL = "127.0.0.1:6100";
+        std::cout << " Local mode , IP: " << serverURL << "\n";
+    }
 
     session = cli_open(serverURL, 10, 1);
     if (session == cli_bad_address) { 
@@ -194,9 +178,9 @@ int main()
    diff_count diff;
    diff.start();
 
-    int count = 2;// 100 * 10 ;
+    int count =  1000 * 10 ;
     int count_num = count;
-    while (count > 0)
+    while (count-- > 0)
     { 
 
         // 逐条发送  
@@ -216,7 +200,6 @@ int main()
         memset(p.value21,3,sizeof(p.value21));
         rc = cli_insert(statement, &oid);
 
-        count--;
         if (rc != cli_ok) { 
             fprintf(stderr, "cli_insert failed with code %d\n", rc);
             return EXIT_FAILURE;
@@ -227,6 +210,8 @@ int main()
             fprintf(stderr, "cli_precommit failed with code %d\n", rc);
             return EXIT_FAILURE;            
         }
+        fprintf(stderr, "cli_precommit success: %d\n", rc);
+        sleep(1);
 
     }
     diff.add_snap();
