@@ -155,7 +155,25 @@ MSDB:   FASTDB 无盘模式
 
 
 
-//cli multy insert mode     一个客户端插入 
+
+//// --------------------------  CLI 接口 ---------------------------------------
+
+
+
+// cli insert  一个客户端插入数据   
+
+ 总条数          每次发送条数    发送线程数      延时ms          仅发送延迟      IPS（条/秒）
+ 50000            1              1                                              4000
+
+// cli select   一个客户端读取数据   
+
+ 总条数          每次发送条数    发送线程数      延时ms          仅发送延迟      IPS（条/秒）
+ 50000            1              1                                              8000
+
+
+
+
+//cli multy insert mode     一个客户端插入数据 
 
  总条数          每次发送条数    发送线程数      延时ms          仅发送延迟      IPS
   50000            50000            1             49                          1020408.163265
@@ -166,37 +184,6 @@ MSDB:   FASTDB 无盘模式
 
 
 
-debug:
-g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -O0 -g  -Wno-invalid-offsetof -Wall -DDEBUG -MT subsql.o -MD -MP -MF .deps/subsql.Tpo -c -o subsql.o subsql.cpp
-g++ -O0 -g -Wno-invalid-offsetof -Wall -DDEBUG -o .libs/subsql subsql.o  ./.libs/libfastdb.so -lpthread -lm  -Wl,--rpath -Wl,/opt/fastdb64/lib
-
-
-release:
-g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -MT container.lo -MD -MP -MF .deps/container.Tpo -c container.cpp -o container.o
-g++ -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -o .libs/testtimeseries testtimeseries.o  ../src/.libs/libfastdb.so -lpthread -lm  -Wl,--rpath -Wl,/opt/fastdb64/lib
-
-
-
-00 08 00 04 (oid)
-            04 00 00 00  0a 01 00 02 02 03 00 03  
-04 00 00 00 04 05 00 00  00 00 00 00 00 05 04 00  
-00 00 06 04 00 00 00 07  04 00 00 00 08 04 00 00  
-00 09 04 00 00 00 0a 04  00 00 00 0b 04 00 00 00  
-00 04 00 00 00 00 04 00  00 00 00 04 00 00 00 00  
-04 00 00 00 00 04 00 00  00 00 04 00 00 00 00 04  
-00 00 00 00 04 00 00 00  00 04 00 00 00 00 0e 00  
-00 00 0a 68 65 6c 6c 6f  20 00 00 00 00
-04 00 00  
-00 0b 01 01 02 03 03 00  04 04 00 00 00 05 05 00  
-00 00 00 00 00 00 06 04  00 00 00 07 04 00 00 00  
-08 04 00 00 00 09 04 00  00 00 0a 04 00 00 00 0b  
-04 00 00 00 0c 04 00 00  00 00 04 00 00 00 00 04  
-00 00 00 00 04 00 00 00  00 04 00 00 00 00 04 00  
-00 00 00 04 00 00 00 00  04 00 00 00 00 04 00 00  
-00 00 04 00 00 00 00 0e  00 00 00 0a 68 65 6c 6c  
-6f 20 00 00 00 00 
-
-00 00  00 00 00 00 00 00 00 00
 
 
       
