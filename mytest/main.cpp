@@ -16,6 +16,7 @@ USE_FASTDB_NAMESPACE
  
 USE_FASTDB_NAMESPACE
  
+
 class Record
 {
 public:
@@ -44,6 +45,7 @@ public:
     int4 value18;   
     int4 value19; 
     int4 value20;  
+    dbArray<int1> value21;
 
 
     TYPE_DESCRIPTOR( ( KEY( id, INDEXED  ),
@@ -67,7 +69,8 @@ public:
                       FIELD( value17),   
                       FIELD( value18),   
                       FIELD( value19), 
-                      FIELD( value20) ) );
+                      FIELD( value20),
+                      FIELD( value21)  ) );
 };
  
 // 创建 Record 数据表
@@ -105,7 +108,7 @@ void insertRecord(int size, int id)
         rec.value18 = i;
         rec.value19 = i;
         rec.value20 = i;
-      
+     
            
         // 插入数据
         // printf(" inserted database  threadid:%d\n ",id);
@@ -211,18 +214,21 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
         for(int i = 0 ; i < ROW; i++)
         {
             diff_count diff;
+            diff.start();
             for(int j = 0; j < test_par[i][1]; j++)
             {
+                
                 insertRecord(test_par[i][0], threadid);
 
                 // 提交
-                diff.start();
+               
                 db.precommit();
                 //db.commit();
-                diff.stop();
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                
+                //std::this_thread::sleep_for(std::chrono::milliseconds(10));
                //  printf(" -- ");
             }
+            diff.stop();
             db.commit();
             diff.show_diff(test_result[i][0],test_result[i][1]);
             // 删除所有数据
@@ -284,7 +290,7 @@ int main()
     // 打开数据库 testpar
     int th_count =1;
 
-    const int test_count = 10 *10000;
+    const int test_count = 1 *10;
     int test_par[ROW][COL];  // 批量测试参数
     int test_result[th_count][ROW][2];  // 批量测试参数
     for(int i = 0 ; i < ROW; i++)

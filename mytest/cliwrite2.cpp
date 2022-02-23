@@ -246,8 +246,6 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-
-
     u_int16_t record_num = 500;
     Record record_arry[record_num];
 
@@ -257,16 +255,16 @@ int main(int arg, char **argv)
         record_arry[i].id = i+10;
         record_arry[i].value = i%2 ? true: false;
         record_arry[i].value1 = i+2;
-       record_arry[i].value2 = i+3;
-       record_arry[i].value3 = i+4;
-       record_arry[i].value4 = i+5;
-       record_arry[i].value5 = i+6;
-       record_arry[i].value6 = i+7;
-       record_arry[i].value7 = i+8;
-       record_arry[i].value8 = i+9;
-       record_arry[i].value9 = i+10;
-       record_arry[i].value10 = i+11;
-       strcpy((char*)record_arry[i].value21,"hello ");
+        record_arry[i].value2 = i+3;
+        record_arry[i].value3 = i+4;
+        record_arry[i].value4 = i+5;
+        record_arry[i].value5 = i+6;
+        record_arry[i].value6 = i+7;
+        record_arry[i].value7 = i+8;
+        record_arry[i].value8 = i+9;
+        record_arry[i].value9 = i+10;
+        record_arry[i].value10 = i+11;
+        strcpy((char*)record_arry[i].value21,"hello ");
     }
 
     fprintf(stderr, " record_len:%d,   record_num:%d,  \n", sizeof(record_arry[0]), record_num);
@@ -296,8 +294,7 @@ int main(int arg, char **argv)
 
     rc = cli_free(statement);
     if (rc != cli_ok) { 
-        fprintf(stderr, "cli_free failed with code %d\n", rc);
-        
+        fprintf(stderr, "cli_free failed with code %d\n", rc);    
         return EXIT_FAILURE;
     }
 

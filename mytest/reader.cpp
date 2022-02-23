@@ -18,11 +18,11 @@ public:
     ~Record(){}
 public:
     int4 id;           // id 作为主键唯一标识
-    int4 value;    
-    int4 value1;
-    int4 value2;        // value 作为保存值
+    bool value;    
+    int1 value1;
+    int2 value2;        // value 作为保存值
     int4 value3;   
-    int4 value4; 
+    int8 value4; 
     int4 value5;   
     int4 value6;   
     int4 value7; 
@@ -39,7 +39,9 @@ public:
     int4 value18;   
     int4 value19; 
     int4 value20;  
- 
+    dbArray<int1> value21;
+
+
     TYPE_DESCRIPTOR( ( KEY( id, INDEXED  ),
                        FIELD( value ),                     
                       FIELD( value1) ,
@@ -61,7 +63,8 @@ public:
                       FIELD( value17),   
                       FIELD( value18),   
                       FIELD( value19), 
-                      FIELD( value20) ) );
+                      FIELD( value20),
+                      FIELD( value21)  ) );
 };
  
 // 创建 Record 数据表

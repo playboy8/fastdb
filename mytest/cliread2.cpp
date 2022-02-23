@@ -208,7 +208,7 @@ int main(int arg, char **argv)
             #endif
 
                 read_count++;
-               // std::cout << "p.id:" << p.id << "\t p.value:" << p.value << "\t p.value1:" << p.value1 << std::endl; 
+                // std::cout << "p.id:" << p.id << "\t p.value:" << p.value << "\t p.value1:" << p.value1 << std::endl; 
                 while (rc = cli_parser_next(statement)== cli_ok)
                 {
                     read_count++;
