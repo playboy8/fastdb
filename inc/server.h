@@ -88,6 +88,7 @@ class dbStatement {
     db_int2             recored_off; // per recode size in db
     bool                prepared;  //
     long                curr_index;
+    dbStatement*        fetch_stmt;
     
     void reset();
 
@@ -102,6 +103,7 @@ class dbStatement {
         recored_len = 0;
         curr_index = 0;
         prepared = false;
+        fetch_stmt = NULL;
     }
     ~dbStatement() { 
         reset(); 
@@ -171,6 +173,7 @@ class FASTDB_DLL_ENTRY dbServer {
     bool update(dbSession* session, int stmt_id, char* new_data);
     bool insert(dbSession* session, int stmt_id, char* data, bool prepare);
     bool insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len);
+    bool search_for_filter(dbSession* session,dbStatement* stmt);
     bool alloc_store(dbStatement* stmt, dbTableDescriptor* desc, size_t size, oid_t& oid);
     size_t parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg);
     size_t parser_data_from_multyinsert_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg);

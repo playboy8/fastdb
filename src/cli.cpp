@@ -124,6 +124,21 @@ struct session_desc {
     session_desc() {}
 };
 
+
+static void memory_dump(void *ptr, int len) {
+    int i;
+
+    for (i = 0; i < len; i++) {
+        if (i % 8 == 0 && i != 0)
+            printf(" ");
+        if (i % 16 == 0 && i != 0)
+            printf("\n");
+        printf("%02x ", *((uint8_t *)ptr + i));
+    }
+    printf("\n");
+}
+
+
 template<class T>
 class descriptor_table { 
   protected: 
@@ -618,6 +633,10 @@ int cli_fetch(int statement, int for_update)
             }
         }
     }
+
+
+memory_dump(buf, msg_size);
+
     assert(msg_size == (size_t)(p - buf.base()));
     if (!stmt->session->sock->write(buf, msg_size)) { 
         return cli_network_error;
@@ -1224,19 +1243,6 @@ int cli_update(int statement)
 }
 
 
-
-static void memory_dump(void *ptr, int len) {
-    int i;
-
-    for (i = 0; i < len; i++) {
-        if (i % 8 == 0 && i != 0)
-            printf(" ");
-        if (i % 16 == 0 && i != 0)
-            printf("\n");
-        printf("%02x ", *((uint8_t *)ptr + i));
-    }
-    printf("\n");
-}
 
 static int cli_get(int statement, int cmd, cli_oid_t value = 0)
 {

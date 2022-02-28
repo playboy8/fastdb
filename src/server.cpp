@@ -2258,6 +2258,364 @@ bool dbServer::alloc_store(dbStatement* stmt, dbTableDescriptor* desc, size_t si
     return true;
 }
 
+#if 1
+inline bool dbServer::search_for_filter(dbSession* session,dbStatement* stmt_insert)
+{
+
+    bool prepare = false;
+    int4 response =0;
+    int i;
+    dbCursorType cursorType = dbCursorForUpdate;
+    dbTableDescriptor* desc;
+    dbColumnBinding* cb;
+    dbStatement* stmt = stmt_insert->fetch_stmt;
+
+    prepare = (stmt == NULL);
+    if (prepare) 
+    { 
+        stmt = new dbStatement(cli_cmd_prepare_and_execute);
+        stmt->next = session->stmts;
+        session->stmts = stmt;
+    
+        dbColumnBinding** cpp = &(stmt->columns);
+        desc = db->findTable(stmt_insert->table->name);
+        if(NULL==desc)
+        {
+          TRACE_MSG(("db->findTable(%s) failed ! \n", stmt_insert->table->name));
+          response =-1;
+          return response;
+        }
+
+        bool first_par = true;
+        int parament_num = 0;
+        std::string sql= std::string(" where ");
+        for (cb = stmt_insert->columns; cb != NULL; cb = cb->next) 
+        { 
+          if(cb->fd->indexType & (INDEXED|HASHED))
+          {
+              if(!first_par) sql.append(" and ");
+              sql.append(cb->fd->name);
+              sql.append(" =  ");
+              //sql.append(cb->fd->name);
+              first_par = false;
+              parament_num++;
+          }
+              dbColumnBinding* cb2 = new dbColumnBinding(desc->findSymbol(cb->fd->name), cb->cliType);
+              *cpp = cb2;
+              cpp = &cb2->next;
+              stmt->n_columns++;
+        }
+
+        stmt->n_params = parament_num;
+        stmt->params = new dbParameterBinding[stmt->n_params];    
+        stmt->table = desc;
+        stmt->cursor = new dbAnyCursor(*desc, dbCursorViewOnly, NULL); 
+        stmt->cursor->setPrefetchMode(false);
+
+
+        if ((size_t)stmt->buf_size < (sql.length()+1 +2*stmt->n_params)) { 
+            delete[] stmt->buf;
+            stmt->buf = new char[sql.size()+1];
+            stmt->buf_size = (int)sql.size()+1;
+        }
+
+        char *p = stmt->buf;
+        char *q = NULL;
+        memcpy(stmt->buf,sql.data(),sql.length()+1 +2*stmt->n_params );
+        for (i=0,cb = stmt_insert->columns; i < parament_num && cb != NULL; cb = cb->next, i++) 
+        { 
+          if(cb->fd->indexType & (INDEXED|HASHED))
+          {
+              if( NULL != (q = strstr(p," =")) )
+              {
+                  q += 2;
+                  *(q++) = '\0';
+                  *(q++) = cb->cliType;
+                  p = q;
+              }
+          }
+        }
+
+        p = stmt->buf;
+
+        for (i = 0; i <parament_num ; i++) { 
+            stmt->query.append(dbQueryElement::qExpression, p);
+            p += strlen(p) + 1;
+            int cliType = *p++;
+            static const dbQueryElement::ElementType type_map[] = { 
+                dbQueryElement::qVarReference, // cli_oid
+                dbQueryElement::qVarBool,      // cli_bool
+                dbQueryElement::qVarInt1,      // cli_int1 
+                dbQueryElement::qVarInt2,      // cli_int2
+                dbQueryElement::qVarInt4,      // cli_int4
+                dbQueryElement::qVarInt8,      // cli_int8
+                dbQueryElement::qVarReal4,     // cli_real4
+                dbQueryElement::qVarReal8,     // cli_real8
+                dbQueryElement::qVarUnknown,   // cli_decimal
+                dbQueryElement::qVarStringPtr, // cli_asciiz
+                dbQueryElement::qVarStringPtr, // cli_pasciiz
+                dbQueryElement::qVarUnknown,   // cli_cstring
+                dbQueryElement::qVarUnknown,   // cli_array_of_oid,
+                dbQueryElement::qVarUnknown,   // cli_array_of_bool
+                dbQueryElement::qVarUnknown,   // cli_array_of_int1
+                dbQueryElement::qVarUnknown,   // cli_array_of_int2
+                dbQueryElement::qVarUnknown,   // cli_array_of_int4
+                dbQueryElement::qVarUnknown,   // cli_array_of_int8
+                dbQueryElement::qVarUnknown,   // cli_array_of_real4
+                dbQueryElement::qVarUnknown,   // cli_array_of_real8
+                dbQueryElement::qVarUnknown,   // cli_array_of_decimal
+                dbQueryElement::qVarUnknown,   // cli_array_of_string
+                dbQueryElement::qVarUnknown,   // cli_any
+                dbQueryElement::qVarInt4,      // cli_datetime
+                dbQueryElement::qVarUnknown,   // cli_autoincrement
+                dbQueryElement::qVarRectangle, // cli_rectanlge
+                dbQueryElement::qVarWStringPtr,// cli_wstring
+                dbQueryElement::qVarWStringPtr,// cli_pwstring
+                dbQueryElement::qVarUnknown,   // cli_array_of_wstring
+                dbQueryElement::qVarUnknown,   // cli_unknown
+            };
+            stmt->params[i].type = cliType;
+            stmt->query.append(type_map[cliType], &stmt->params[i].u);          
+        }
+
+        for (i=0, cb = stmt_insert->columns; cb != NULL && i < stmt->n_params; cb = cb->next) { 
+          if(cb->fd->indexType & (INDEXED|HASHED))
+          {
+            memcpy(&stmt->params[i].u.i1, cb->ptr, sizeof_type[ (cb->cliType < cli_array_of_oid ? cb->cliType : cb->cliType-cli_array_of_oid)]); 
+            i++;
+          }
+        }
+        stmt_insert->fetch_stmt = stmt;
+      }
+      else
+      {
+        for (i=0, cb = stmt_insert->columns; cb != NULL; cb = cb->next) { 
+          if(cb->fd->indexType & (INDEXED|HASHED))
+          {
+            memcpy(&stmt->params[i].u.i1, cb->ptr, sizeof_type[ (cb->cliType < cli_array_of_oid ? cb->cliType : cb->cliType-cli_array_of_oid)]); 
+            i++;
+          }
+        }
+      }
+
+
+#ifdef THROW_EXCEPTION_ON_ERROR
+    try { 
+        response = (int)stmt->cursor->select(stmt->query, cursorType);
+    } catch (dbException const& x) { 
+        response = (x.getErrCode() == dbDatabase::QueryError)
+            ? cli_bad_statement : cli_runtime_error;
+    }
+#else
+    { 
+        dbDatabaseThreadContext* ctx = db->threadContext.get();
+        ctx->catched = true;
+        int errorCode = setjmp(ctx->unwind);
+        if (errorCode == 0) { 
+            response = (int)stmt->cursor->select(stmt->query, cursorType);
+        } else { 
+            response = (errorCode == dbDatabase::QueryError)
+                ? cli_bad_statement : cli_runtime_error;
+        }
+        ctx->catched = false;
+    }
+#endif 
+    return response;
+}
+#endif
+
+#if 0
+inline bool dbServer::search_for_filter(dbSession* session,dbStatement* stmt_insert)
+{
+    
+    char* msg;
+    int stmt_id = cli_cmd_prepare_and_execute;
+    int4 response;
+    int i, n_params, tkn, n_columns;
+    dbStatement* stmt = findStatement(session, stmt_id);
+    dbCursorType cursorType;
+    dbTableDescriptor* desc;
+    bool prepare = stmt==NULL;
+
+    if (prepare) { 
+
+    bool first_par=false;
+    int parament_num =0, colume_len =0, colume_n =0, size=0, parament_len=0;
+    std::string data;
+    std::string sql= std::string("select * from ") + stmt_insert->table->name + " where ";
+    for (dbColumnBinding* cb = stmt_insert->columns; cb != NULL; cb = cb->next) 
+    { 
+      if(cb->fd->indexType & (INDEXED|HASHED))
+      {
+          if(!first_par) sql.append(" and ");
+          sql.append(cb->fd->name);
+          sql.append(" = %");
+          sql.append(cb->fd->name);
+          first_par = false;
+          parament_num++;
+          parament_len = sizeof_type[cb->cliType-cli_array_of_oid];
+      }
+      colume_n++;
+      colume_len += strlen(cb->fd->name) +1; 
+    }        
+    size = sql.length() + 1 + parament_num + colume_n + colume_len + 1 +  
+
+
+
+
+        stmt = new dbStatement(stmt_id);
+        stmt->next = session->stmts;
+        session->stmts = stmt;
+
+        stmt->n_params = *msg++ & 0xFF;
+        stmt->n_columns = n_columns = *msg++ & 0xFF;
+        stmt->params = new dbParameterBinding[stmt->n_params];
+        int len = unpack2(msg);
+        msg += 2;
+        session->scanner.reset(msg);
+        char *p, *end = msg + len;
+        if (session->scanner.get() != tkn_select) { 
+            response = cli_bad_statement;
+            goto return_response;
+        }
+        if ((tkn = session->scanner.get()) == tkn_all) { 
+            tkn = session->scanner.get();
+        }
+        if (tkn == tkn_from && session->scanner.get() == tkn_ident) { 
+            if ((desc = db->findTable(session->scanner.ident)) != NULL) { 
+                msg = checkColumns(stmt, n_columns, desc, end, response, true);
+                if (response != cli_ok) {
+                    goto return_response;
+                }
+                stmt->cursor = new dbAnyCursor(*desc, dbCursorViewOnly, NULL);
+                stmt->cursor->setPrefetchMode(false);
+            } else { 
+                response = cli_table_not_found;
+                goto return_response;
+            }           
+        } else { 
+            response = cli_bad_statement;
+            goto return_response;
+        }
+        p = session->scanner.p;
+        for (i = 0; p < end; i++) { 
+            stmt->query.append(dbQueryElement::qExpression, p);
+            p += strlen(p) + 1;
+            if (p < end) { 
+                int cliType = *p++;
+                static const dbQueryElement::ElementType type_map[] = { 
+                    dbQueryElement::qVarReference, // cli_oid
+                    dbQueryElement::qVarBool,      // cli_bool
+                    dbQueryElement::qVarInt1,      // cli_int1 
+                    dbQueryElement::qVarInt2,      // cli_int2
+                    dbQueryElement::qVarInt4,      // cli_int4
+                    dbQueryElement::qVarInt8,      // cli_int8
+                    dbQueryElement::qVarReal4,     // cli_real4
+                    dbQueryElement::qVarReal8,     // cli_real8
+                    dbQueryElement::qVarUnknown,   // cli_decimal
+                    dbQueryElement::qVarStringPtr, // cli_asciiz
+                    dbQueryElement::qVarStringPtr, // cli_pasciiz
+                    dbQueryElement::qVarUnknown,   // cli_cstring
+                    dbQueryElement::qVarUnknown,   // cli_array_of_oid,
+                    dbQueryElement::qVarUnknown,   // cli_array_of_bool
+                    dbQueryElement::qVarUnknown,   // cli_array_of_int1
+                    dbQueryElement::qVarUnknown,   // cli_array_of_int2
+                    dbQueryElement::qVarUnknown,   // cli_array_of_int4
+                    dbQueryElement::qVarUnknown,   // cli_array_of_int8
+                    dbQueryElement::qVarUnknown,   // cli_array_of_real4
+                    dbQueryElement::qVarUnknown,   // cli_array_of_real8
+                    dbQueryElement::qVarUnknown,   // cli_array_of_decimal
+                    dbQueryElement::qVarUnknown,   // cli_array_of_string
+                    dbQueryElement::qVarUnknown,   // cli_any
+                    dbQueryElement::qVarInt4,      // cli_datetime
+                    dbQueryElement::qVarUnknown,   // cli_autoincrement
+                    dbQueryElement::qVarRectangle, // cli_rectanlge
+                    dbQueryElement::qVarWStringPtr,// cli_wstring
+                    dbQueryElement::qVarWStringPtr,// cli_pwstring
+                    dbQueryElement::qVarUnknown,   // cli_array_of_wstring
+                    dbQueryElement::qVarUnknown,   // cli_unknown
+                };
+                stmt->params[i].type = cliType;
+                stmt->query.append(type_map[cliType], &stmt->params[i].u);
+            }
+        }
+    } else { 
+        if (stmt == NULL) { 
+            response = cli_bad_descriptor;
+            goto return_response;
+        }
+    }
+    stmt->firstFetch = true;
+    cursorType = *msg++ ? dbCursorForUpdate : dbCursorViewOnly;
+    for (i = 0, n_params = stmt->n_params; i < n_params; i++) { 
+        switch (stmt->params[i].type) { 
+          case cli_oid:
+            stmt->params[i].u.oid = unpack_oid(msg);
+            msg += sizeof(cli_oid_t);
+            break;
+          case cli_int1:
+            stmt->params[i].u.i1 = *msg++;
+            break;
+          case cli_int2:
+            msg = unpack2((char*)&stmt->params[i].u.i2, msg);
+            break;
+          case cli_int4:
+            msg = unpack4((char*)&stmt->params[i].u.i4, msg);
+            break;
+          case cli_int8:
+            msg = unpack8((char*)&stmt->params[i].u.i8, msg);
+            break;
+          case cli_real4:
+            msg = unpack4((char*)&stmt->params[i].u.r4, msg);
+            break;
+          case cli_real8:
+            msg = unpack8((char*)&stmt->params[i].u.r8, msg);
+            break;
+          case cli_bool:
+            stmt->params[i].u.b = *msg++;
+            break;
+          case cli_asciiz:
+          case cli_pasciiz:
+            stmt->params[i].u.str = msg;
+            msg += strlen(msg) + 1;
+            break;
+          case cli_rectangle:
+            assert(sizeof(cli_rectangle_t) == sizeof(rectangle));
+            msg = unpack_rectangle((cli_rectangle_t*)&stmt->params[i].u.rect, msg);
+            break;
+          default:
+            response = cli_bad_statement;
+            goto return_response;           
+        }
+    } 
+#ifdef THROW_EXCEPTION_ON_ERROR
+    try { 
+        response = (int)stmt->cursor->select(stmt->query, cursorType);
+    } catch (dbException const& x) { 
+        response = (x.getErrCode() == dbDatabase::QueryError)
+            ? cli_bad_statement : cli_runtime_error;
+    }
+#else
+    { 
+        dbDatabaseThreadContext* ctx = db->threadContext.get();
+        ctx->catched = true;
+        int errorCode = setjmp(ctx->unwind);
+        if (errorCode == 0) { 
+            response = (int)stmt->cursor->select(stmt->query, cursorType);
+        } else { 
+            response = (errorCode == dbDatabase::QueryError)
+                ? cli_bad_statement : cli_runtime_error;
+        }
+        ctx->catched = false;
+    }
+#endif  
+  return_response:
+    pack4(response);
+    return session->sock->write(&response, sizeof response);
+}
+
+#endif
+
 bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len)
 {
     const char* msg_head = data;
@@ -2275,6 +2633,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
     dbFieldDescriptor* fd;
     uint32_t record_num = 0;
     bool prepare = stmt ? (!stmt->prepared) : true; ;
+    int num;
 
     if (stmt == NULL) { 
         if (!prepare) { 
@@ -2299,7 +2658,6 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
             || session->scanner.get() != tkn_ident) 
         {
  //           TRACE_MSG(("statement: %s.",data));
-
             response = cli_bad_statement;
             goto return_response_multy;
         }
@@ -2320,6 +2678,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
         data = unpack2((char*)(&stmt->recored_len),data);       
         stmt->table = desc;
         stmt->prepared = true;
+
     }
  
     // parser data pos, bonding data to cb struct.
@@ -2347,12 +2706,32 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
 
 //    TRACE_MSG((" size= %d,  offs=%d, j= %d \n",size,offs,j));//  size= 124,  offs=118.
 
-    alloc_store(stmt, desc, size, oid);
+
+
+  num = search_for_filter(session,stmt);
+
+    TRACE_MSG((" search_for_filter num1= %d \n",num));
+
+    if(num>0)
+      ;
+    else
+      alloc_store(stmt, desc, size, oid);
+    
+
+    
 
     for(j = 1; j < record_num ; j++ )
     {
         update_cb(desc,stmt,0);
+       num = search_for_filter(session,stmt);
+
+      TRACE_MSG((" search_for_filter num= %d \n",num));
+
+      if(num>0)
+        ;
+      else
         alloc_store(stmt, desc, size, oid);
+
     }
 /// should add auto precommit() 
 
@@ -2734,7 +3113,7 @@ bool dbServer::select(dbSession* session, int stmt_id, char* msg, bool prepare)
         }
         if (tkn == tkn_from && session->scanner.get() == tkn_ident) { 
             if ((desc = db->findTable(session->scanner.ident)) != NULL) { 
-                msg = checkColumns(stmt, n_columns, desc, end, response, true);
+                msg = checkColumns(stmt, n_columns, desc, end, response, true); //
                 if (response != cli_ok) {
                     goto return_response;
                 }
