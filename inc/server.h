@@ -164,6 +164,7 @@ class FASTDB_DLL_ENTRY dbServer {
     bool seek(dbSession* session, int stmt_id, char* buf);
     bool skip(dbSession* session, int stmt_id, char* buf);
     bool fetch(dbSession* session, dbStatement* stmt, oid_t result);
+    bool fetch_to_buf(dbStatement* stmt, oid_t result);
     bool fetch_multy(dbSession* session, dbStatement* stmt, oid_t result);
     bool fetch(dbSession* session, dbStatement* stmt) { 
         return fetch(session, stmt, stmt->cursor->currId);
@@ -171,6 +172,7 @@ class FASTDB_DLL_ENTRY dbServer {
     bool remove(dbSession* session, int stmt_id);
     bool remove_current(dbSession* session, int stmt_id);
     bool update(dbSession* session, int stmt_id, char* new_data);
+    bool update_insert_data(dbStatement* stmt, int stmt_id, char* new_data);
     bool insert(dbSession* session, int stmt_id, char* data, bool prepare);
     bool insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len);
     bool search_for_filter(dbSession* session,dbStatement* stmt);

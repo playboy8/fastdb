@@ -257,24 +257,10 @@ int dbColumnBinding::unpackArray_multy(char* dst, size_t& offs)
         if (cliType >= cli_array_of_oid) { 
             switch (sizeof_type[cliType - cli_array_of_oid]) { 
               case 1:
-                memcpy(dst + offs, ptr , len);
-                break;
               case 2:
-                for (i = 0; i < len; i++) {
-                    unpack2(dst + offs + i*2, ptr  + i*2);
-                }
-             //  memcpy(dst+offs,  ptr, len* cb  )
-
-                break;
               case 4:
-                for (i = 0; i < len; i++) {
-                    unpack4(dst + offs + i*4, ptr  + i*4);
-                }
-                break;
               case 8:
-                for (i = 0; i < len; i++) {
-                    unpack8(dst + offs + i*8, ptr + i*8);
-                }
+                memcpy(dst + offs, ptr , len * sizeof_type[cliType - cli_array_of_oid]);
                 break;
               default:
                 assert(false);
@@ -1263,6 +1249,629 @@ bool dbServer::fetch(dbSession* session, dbStatement* stmt, oid_t result)
     return session->sock->write(stmt->buf, msg_size);
 }
 
+bool dbServer::fetch_to_buf(dbStatement* stmt, oid_t result)
+{
+    int4 response;
+    char buf[64];
+    dbColumnBinding* cb;
+    
+    stmt->firstFetch = false;
+    if (stmt->cursor->isEmpty()) { 
+        response = cli_not_found;
+        return response;
+    }
+    size_t msg_size = stmt->recored_len;
+    char* data = (char*)db->getRow(stmt->cursor->currId);
+    char* src;
+    
+    if ((size_t)stmt->buf_size < msg_size) { 
+        delete[] stmt->buf;
+        stmt->buf = new char[msg_size];
+        stmt->buf_size = (int)msg_size;
+    }
+    char* p = stmt->buf;
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        char* src = data + cb->fd->dbsOffs;
+        cb->ptr = p; 
+
+        // insert_multy not support cli_decimal. 
+        if (cb->cliType == cli_decimal) {
+            switch (cb->fd->type) {
+              case dbField::tpInt1:
+                p += sprintf(p, "%d", *(int1*)src);
+                break;
+              case dbField::tpInt2:
+                p += sprintf(p, "%d", *(int2*)src);
+                break;
+              case dbField::tpInt4:
+                p += sprintf(p, "%d", *(int4*)src);
+                break;
+              case dbField::tpInt8:
+                p += sprintf(p, INT8_FORMAT, *(db_int8*)src);
+                break;
+              case dbField::tpReal4:
+                p += sprintf(p, "%.14g", *(real4*)src);
+                break;
+              case dbField::tpReal8:
+                p += sprintf(p, "%.14g", *(real8*)src);
+                break;
+            }
+            p += 1;
+        } else { 
+            switch (cb->fd->type) { 
+              case dbField::tpBool:
+              case dbField::tpInt1:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = *src;
+                    break;
+                  case 2:
+                    *(int2*)p = (int2)*(db_int1*)src;
+                    p += 2;
+                    break;
+                  case 4:
+                    *(int4*)p = (int4)*(db_int1*)src;
+                    p += 4;
+                    break;
+                  case 8:
+                    *(int8*)p = (int8)*(db_int1*)src;
+                    p += 8;
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;              
+              case dbField::tpInt2:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = (char)*(int2*)src;
+                    break;
+                  case 2:
+                    *(int2*)p = (int2)*(db_int2*)src;
+                    p += 2;
+                    break;
+                  case 4:
+                    *(int4*)p = (int4)*(db_int2*)src;
+                    p += 4;
+                    break;
+                  case 8:
+                    *(int8*)p = (int8)*(db_int2*)src;
+                    p += 8;
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpInt4:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = (char)*(int4*)src;
+                    break;
+                  case 2:
+                    *(int2*)p = (int2)*(db_int4*)src;
+                    p += 2;
+                    break;
+                  case 4:
+                    *(int4*)p = *(db_int4*)src;
+                    p += 4;
+                    break;
+                  case 8:
+                    *(int8*)p = (int8)*(db_int4*)src;
+                    p += 8;
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpInt8:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = (char)*(db_int8*)src;
+                    break;
+                  case 2:
+                    *(int2*)p = (int2)*(db_int8*)src;
+                    p += 2;
+                    break;
+                  case 4:
+                    *(int4*)p = (int4)*(db_int8*)src;
+                    p += 4;
+                    break;
+                  case 8:
+                    *(int8*)p = *(db_int8*)src;
+                    p += 8;
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpReal4:
+                switch (cb->cliType) { 
+                  case cli_real4:
+                    *(cli_real4_t*)p = *(real4*)src;
+                     p += sizeof(real4);
+                    break;
+                  case cli_real8:
+                  {
+                      *(cli_real8_t*)p = *(real4*)src;
+                      p += sizeof(real8);
+                      break;
+                  }
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpReal8:
+                switch (cb->cliType) { 
+                  case cli_real4:
+                  {
+                      real4 temp = (real4)*(real8*)src;
+                      *(real4*)p = temp;
+                      p += sizeof(real4);
+                  }
+                  break;
+                  case cli_real8:
+                    *(cli_real8_t*)p = *(real8*)src;
+                    p += sizeof(cli_real8_t);
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpString: // not support
+              {
+                  dbVarying* v = (dbVarying*)src;
+                  int size = v->size;
+                  if (cb->cliType == cli_cstring && size != 0) { 
+                      size -= 1;
+                  }
+                  p = pack4(p, size);
+                  memcpy(p, data + v->offs, size);
+                  p += v->size;
+                  break;
+              }
+              case dbField::tpWString: // not support
+              {
+                  dbVarying* v = (dbVarying*)src;
+                  int size = v->size;
+                  p = pack4(p, size);
+                  memcpy(p, data + v->offs, size*sizeof(wchar_t));
+                  p += size*sizeof(wchar_t);
+                  break;
+              }
+              case dbField::tpReference:
+                *(oid_t*)p = *(oid_t*)src;
+                break;
+              case dbField::tpRectangle: // not support
+                p = pack_rectangle(p, (cli_rectangle_t*)src);
+                break;
+              case dbField::tpArray:
+              {
+                  dbVarying* v = (dbVarying*)src;
+                  int n = v->size;
+                  cb->ptr = p;
+                  src = data + v->offs;
+                  if (cb->cliType == cli_array_of_string) { // // not support
+                      while (--n >= 0) {
+                          strcpy(p, (char*)(src + ((dbVarying*)src)->offs));
+                          p += strlen(p) + 1;
+                          src += sizeof(dbVarying);
+                      }
+                  } else if (cb->cliType == cli_array_of_wstring) {  // not support
+                      while (--n >= 0) {
+                          wcscpy((wchar_t*)p, (wchar_t*)(src + ((dbVarying*)src)->offs));
+                          p += (wcslen((wchar_t*)p) + 1)*sizeof(wchar_t);
+                          src += sizeof(dbVarying);
+                      }
+                  } else if (cb->cliType == cli_array_of_decimal) { // not support
+                      while (--n >= 0) {
+                          switch (cb->fd->components->type) {
+                            case dbField::tpInt1:
+                              p += sprintf(p, "%d", *(int1*)src) + 1;
+                              src += sizeof(int1);
+                              break;
+                            case dbField::tpInt2:
+                              p += sprintf(p, "%d", *(int2*)src) + 1;
+                              src += sizeof(int2);
+                              break;
+                            case dbField::tpInt4:
+                              p += sprintf(p, "%d", *(int4*)src) + 1;
+                              src += sizeof(int4);
+                              break;
+                            case dbField::tpInt8:
+                              p += sprintf(p, INT8_FORMAT, *(db_int8*)src) + 1;
+                              src += sizeof(db_int8);
+                              break;
+                            case dbField::tpReal4:
+                              p += sprintf(buf, "%.14g", *(real4*)src) + 1;
+                              src += sizeof(real4);
+                              break;
+                            case dbField::tpReal8:
+                              p += sprintf(buf, "%.14g", *(real8*)src) + 1;
+                              src += sizeof(real8);
+                              break;
+                          }
+                      }   
+                  } else { 
+                      int size = sizeof_type[cb->cliType-cli_array_of_oid] * n;
+                      memcpy(p, src, size);
+                      p += size;
+                  }
+                  break;
+              }
+              case dbField::tpStructure:   // not support
+                assert(cb->cliType == cli_datetime);
+                p = pack4(p, src);
+                break;
+              default:
+                assert(false);
+            }
+        }
+    }
+    assert((size_t)(p - stmt->buf) == msg_size);
+    return response;
+}
+
+#if 0
+bool dbServer::fetch_to_buf(dbSession* session, dbStatement* stmt, oid_t result)
+{
+    int4 response;
+    char buf[64];
+    dbColumnBinding* cb;
+    
+    stmt->firstFetch = false;
+    if (stmt->cursor->isEmpty()) { 
+        response = cli_not_found;
+        return response;
+    }
+    size_t msg_size = sizeof(cli_oid_t) + 4;
+    char* data = (char*)db->getRow(stmt->cursor->currId);
+    char* src;
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        src = data + cb->fd->dbsOffs;
+        if (cb->cliType == cli_array_of_string) {
+            int len = ((dbVarying*)src)->size;
+            dbVarying* p = (dbVarying*)(data + ((dbVarying*)src)->offs);
+            msg_size += 4;
+            while (--len >= 0) { 
+                msg_size += p->size;
+                p += 1;
+            }
+        } else if (cb->cliType == cli_array_of_wstring) {
+            int len = ((dbVarying*)src)->size;
+            dbVarying* p = (dbVarying*)(data + ((dbVarying*)src)->offs);
+            msg_size += 4;
+            while (--len >= 0) { 
+                msg_size += p->size*sizeof(wchar_t);
+                p += 1;
+            }
+        } else if (cb->cliType == cli_array_of_decimal) { 
+            int len = ((dbVarying*)src)->size;
+            msg_size += 4;
+            char* p = data + ((dbVarying*)src)->offs;
+            while (--len >= 0) { 
+                switch (cb->fd->components->type) {
+                  case dbField::tpInt1:
+                    sprintf(buf, "%d", *(int1*)p);
+                    p += sizeof(int1);
+                    break;
+                  case dbField::tpInt2:
+                    sprintf(buf, "%d", *(int2*)p);
+                    p += sizeof(int2);
+                    break;
+                  case dbField::tpInt4:
+                    sprintf(buf, "%d", *(int4*)p);
+                    p += sizeof(int4);
+                    break;
+                  case dbField::tpInt8:
+                    sprintf(buf, INT8_FORMAT, *(db_int8*)p);
+                    p += sizeof(db_int8);
+                    break;
+                  case dbField::tpReal4:
+                    sprintf(buf, "%.14g", *(real4*)p);
+                    p += sizeof(real4);
+                    break;
+                  case dbField::tpReal8:
+                    sprintf(buf, "%.14g", *(real8*)p);
+                    p += sizeof(real8);
+                    break;
+                }
+                msg_size += strlen(buf) + 1;
+            }
+        } else if (cb->cliType == cli_datetime || cb->cliType == cli_autoincrement) {
+            msg_size += 4;
+        } else if (cb->cliType >= cli_array_of_oid && cb->cliType < cli_array_of_string) {
+            msg_size += 4 + ((dbVarying*)(data + cb->fd->dbsOffs))->size
+                            * sizeof_type[cb->cliType - cli_array_of_oid];
+        } else if (cb->cliType >= cli_asciiz && cb->cliType <= cli_cstring) { 
+            int size = ((dbVarying*)src)->size;
+            if (cb->cliType == cli_cstring && size != 0) { 
+                size -= 1; // omit '\0'
+            }
+            msg_size += 4 + size;
+        } else if (cb->cliType == cli_wstring || cb->cliType == cli_pwstring) { 
+            msg_size += 4 + ((dbVarying*)src)->size*sizeof(wchar_t);
+        } else if (cb->cliType == cli_decimal) {
+            switch (cb->fd->type) {
+              case dbField::tpInt1:
+                sprintf(buf, "%d", *(int1*)src);
+                break;
+              case dbField::tpInt2:
+                sprintf(buf, "%d", *(int2*)src);
+                break;
+              case dbField::tpInt4:
+                sprintf(buf, "%d", *(int4*)src);
+                break;
+              case dbField::tpInt8:
+                sprintf(buf, INT8_FORMAT, *(db_int8*)src);
+                break;
+              case dbField::tpReal4:
+                sprintf(buf, "%.14g", *(real4*)src);
+                break;
+              case dbField::tpReal8:
+                sprintf(buf, "%.14g", *(real8*)src);
+                break;
+            }
+            msg_size += strlen(buf) + 1;
+        } else { 
+            msg_size += sizeof_type[cb->cliType];
+        }
+        msg_size += 1; // column type
+    }
+    if ((size_t)stmt->buf_size < msg_size) { 
+        delete[] stmt->buf;
+        stmt->buf = new char[msg_size];
+        stmt->buf_size = (int)msg_size;
+    }
+    char* p = stmt->buf;
+    p = pack4(p, (int)msg_size);
+    p = pack_oid(p, result);
+
+    for (cb = stmt->columns; cb != NULL; cb = cb->next) { 
+        char* src = data + cb->fd->dbsOffs;
+        *p++ = cb->cliType;
+        if (cb->cliType == cli_decimal) {
+            switch (cb->fd->type) {
+              case dbField::tpInt1:
+                p += sprintf(p, "%d", *(int1*)src);
+                break;
+              case dbField::tpInt2:
+                p += sprintf(p, "%d", *(int2*)src);
+                break;
+              case dbField::tpInt4:
+                p += sprintf(p, "%d", *(int4*)src);
+                break;
+              case dbField::tpInt8:
+                p += sprintf(p, INT8_FORMAT, *(db_int8*)src);
+                break;
+              case dbField::tpReal4:
+                p += sprintf(p, "%.14g", *(real4*)src);
+                break;
+              case dbField::tpReal8:
+                p += sprintf(p, "%.14g", *(real8*)src);
+                break;
+            }
+            p += 1;
+        } else { 
+            switch (cb->fd->type) { 
+              case dbField::tpBool:
+              case dbField::tpInt1:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = *src;
+                    break;
+                  case 2:
+                    p = pack2(p, (int2)*(char*)src);
+                    break;
+                  case 4:
+                    p = pack4(p, (int4)*(char*)src);
+                    break;
+                  case 8:
+                    p = pack8(p, (db_int8)*(char*)src);
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;              
+              case dbField::tpInt2:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = (char)*(int2*)src;
+                    break;
+                  case 2:
+                    p = pack2(p, src);
+                    break;
+                  case 4:
+                    p = pack4(p, (int4)*(int2*)src);
+                    break;
+                  case 8:
+                    p = pack8(p, (db_int8)*(int2*)src);
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpInt4:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = (char)*(int4*)src;
+                    break;
+                  case 2:
+                    p = pack2(p, (int2)*(int4*)src);
+                    break;
+                  case 4:
+                    p = pack4(p, src);
+                    break;
+                  case 8:
+                    p = pack8(p, (db_int8)*(int4*)src);
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpInt8:
+                switch (sizeof_type[cb->cliType]) { 
+                  case 1:
+                    *p++ = (char)*(db_int8*)src;
+                    break;
+                  case 2:
+                    p = pack2(p, (int2)*(db_int8*)src);
+                    break;
+                  case 4:
+                    p = pack4(p, (int4)*(db_int8*)src);
+                    break;
+                  case 8:
+                    p = pack8(p, src);
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpReal4:
+                switch (cb->cliType) { 
+                  case cli_real4:
+                    p = pack4(p, src);
+                    break;
+                  case cli_real8:
+                  {
+                      real8 temp = *(real4*)src;
+                      p = pack8(p, (char*)&temp);
+                      break;
+                  }
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpReal8:
+                switch (cb->cliType) { 
+                  case cli_real4:
+                  {
+                      real4 temp = (real4)*(real8*)src;
+                      p = pack4(p, (char*)&temp);
+                  }
+                  break;
+                  case cli_real8:
+                    p = pack8(p, src);
+                    break;
+                  default:
+                    assert(false);
+                }
+                break;
+              case dbField::tpString:
+              {
+                  dbVarying* v = (dbVarying*)src;
+                  int size = v->size;
+                  if (cb->cliType == cli_cstring && size != 0) { 
+                      size -= 1;
+                  }
+                  p = pack4(p, size);
+                  memcpy(p, data + v->offs, size);
+                  p += v->size;
+                  break;
+              }
+              case dbField::tpWString:
+              {
+                  dbVarying* v = (dbVarying*)src;
+                  int size = v->size;
+                  p = pack4(p, size);
+                  memcpy(p, data + v->offs, size*sizeof(wchar_t));
+                  p += size*sizeof(wchar_t);
+                  break;
+              }
+              case dbField::tpReference:
+                p = pack_oid(p, *(oid_t*)src);
+                break;
+              case dbField::tpRectangle:
+                p = pack_rectangle(p, (cli_rectangle_t*)src);
+                break;
+              case dbField::tpArray:
+              {
+                  dbVarying* v = (dbVarying*)src;
+                  int n = v->size;
+                  p = pack4(p, n);
+                  src = data + v->offs;
+                  if (cb->cliType == cli_array_of_string) {
+                      while (--n >= 0) {
+                          strcpy(p, (char*)(src + ((dbVarying*)src)->offs));
+                          p += strlen(p) + 1;
+                          src += sizeof(dbVarying);
+                      }
+                  } else if (cb->cliType == cli_array_of_wstring) {
+                      while (--n >= 0) {
+                          wcscpy((wchar_t*)p, (wchar_t*)(src + ((dbVarying*)src)->offs));
+                          p += (wcslen((wchar_t*)p) + 1)*sizeof(wchar_t);
+                          src += sizeof(dbVarying);
+                      }
+                  } else if (cb->cliType == cli_array_of_decimal) { 
+                      while (--n >= 0) {
+                          switch (cb->fd->components->type) {
+                            case dbField::tpInt1:
+                              p += sprintf(p, "%d", *(int1*)src) + 1;
+                              src += sizeof(int1);
+                              break;
+                            case dbField::tpInt2:
+                              p += sprintf(p, "%d", *(int2*)src) + 1;
+                              src += sizeof(int2);
+                              break;
+                            case dbField::tpInt4:
+                              p += sprintf(p, "%d", *(int4*)src) + 1;
+                              src += sizeof(int4);
+                              break;
+                            case dbField::tpInt8:
+                              p += sprintf(p, INT8_FORMAT, *(db_int8*)src) + 1;
+                              src += sizeof(db_int8);
+                              break;
+                            case dbField::tpReal4:
+                              p += sprintf(buf, "%.14g", *(real4*)src) + 1;
+                              src += sizeof(real4);
+                              break;
+                            case dbField::tpReal8:
+                              p += sprintf(buf, "%.14g", *(real8*)src) + 1;
+                              src += sizeof(real8);
+                              break;
+                          }
+                      }   
+                  } else { 
+                      switch (sizeof_type[cb->cliType-cli_array_of_oid]) { 
+                        case 2:
+                          while (--n >= 0) { 
+                              p = pack2(p, src);
+                              src += 2;
+                          }
+                          break;
+                        case 4:
+                          while (--n >= 0) { 
+                              p = pack4(p, src);
+                              src += 4;
+                          }
+                          break;
+                        case 8:
+                          while (--n >= 0) { 
+                              p = pack8(p, src);
+                              src += 8;
+                          }
+                          break;
+                        default:
+                          memcpy(p, src, n);
+                          p += n;
+                      }
+                  }
+                  break;
+              }
+              case dbField::tpStructure:
+                assert(cb->cliType == cli_datetime);
+                p = pack4(p, src);
+                break;
+              default:
+                assert(false);
+            }
+        }
+    }
+    assert((size_t)(p - stmt->buf) == msg_size);
+    return response;
+}
+
+#endif
+
 // cal one record data size 
 size_t get_msg_size(char* data, dbStatement* stmt )
 {
@@ -1959,6 +2568,195 @@ bool dbServer::update(dbSession* session, int stmt_id, char* new_data)
     return session->sock->write(&response, sizeof response);
 }    
 
+bool dbServer::update_insert_data(dbStatement* stmt, int stmt_id, char* new_data)
+{
+    dbStatement* fetch_stmt = stmt->fetch_stmt;
+    dbColumnBinding  *cb, *cb_new;
+    int4 response;
+    oid_t result;
+    char* old_data;
+    int change_fields =0;
+
+    if (fetch_stmt->cursor->isEmpty()) { 
+        response = cli_not_found;
+        return response;
+    }
+
+    // get last record
+    if (!fetch_stmt->cursor->gotoLast()) { 
+        response = cli_not_found;
+    } 
+
+    fetch_stmt->recored_len = stmt->recored_len;
+    fetch_stmt->recored_len = stmt->recored_len;
+    fetch_stmt->recored_off = stmt->recored_off;
+
+    printf(" fetch_stmt->recored_off=%d . \n",fetch_stmt->recored_off);
+
+    fetch_to_buf(fetch_stmt, result);
+
+    // compare data in buffer, flags changes.
+
+    change_fields = 0 ;
+    #if 1
+    for (cb = fetch_stmt->columns, cb_new=stmt->columns; cb != NULL && cb_new != NULL; cb = cb->next, cb_new = cb_new->next) { 
+        cb->ptr = cb_new->ptr;    
+        if (cb->cliType == cli_decimal) {       
+            if (cb->fd->indexType & (HASHED|INDEXED)
+                && strcmp(cb->ptr, cb_new->ptr) != 0)
+            {
+                cb->fd->attr |= dbFieldDescriptor::Updated;
+            }
+        } else if (cb->cliType >= cli_asciiz && (cb->cliType <= cli_array_of_string || cb->cliType == cli_array_of_wstring)) {
+          //  only support none ptr data   .
+            int new_len = cb_new->array_num; // * ((cb->cliType >= cli_array_of_oid && cb->cliType <= cli_array_of_real8  ) ?  sizeof_type[cb->cliType - cli_array_of_oid] : sizeof_type[cb->cliType]);// unpack4(new_data);    
+            cb->len = cb->array_num = cb_new->array_num;
+            if (cb->cliType == cli_cstring) {  /// not support cstring     // louis
+                cb->len += 1; // add '\0'
+            }
+            if (cb->fd->indexType & (HASHED|INDEXED) 
+                && memcmp(cb_new->ptr, cb->ptr, new_len) != 0)
+            {
+                cb->fd->attr |= dbFieldDescriptor::Updated;
+            }
+            
+        } else { 
+            int size = sizeof_type[cb->cliType];
+            if (cb->fd->indexType & (HASHED|INDEXED) 
+                && memcmp(cb_new->ptr, cb->ptr, size) != 0)
+            {
+                cb->fd->attr |= dbFieldDescriptor::Updated;
+            }       
+        }    
+    }
+    #endif
+   // db->precommit();
+   // db->commit();
+    db->beginTransaction(dbDatabase::dbExclusiveLock);
+
+    dbRecord* rec = db->getRow(fetch_stmt->cursor->currId);
+    dbTableDescriptor* table = fetch_stmt->query.table;
+    dbFieldDescriptor *first = table->columns, *fd = first;
+    size_t offs = fetch_stmt->recored_off;
+
+    old_data = new char[rec->size];
+    memcpy(old_data, rec, rec->size);
+#if 1
+    for (cb = fetch_stmt->columns; cb != NULL; cb = cb->next) { 
+        if (cb->fd->attr & dbFieldDescriptor::Updated) {            
+            if (cb->fd->indexType & HASHED) { 
+                dbHashTable::remove(db, cb->fd, fetch_stmt->cursor->currId);
+            }
+            if (cb->fd->indexType & INDEXED) { 
+                if (cb->fd->type == dbField::tpRectangle) { 
+                    dbRtree::remove(db, cb->fd->tTree, fetch_stmt->cursor->currId,
+                                    cb->fd->dbsOffs);
+                } else { 
+                    dbTtree::remove(db, cb->fd->tTree, fetch_stmt->cursor->currId, 
+                                    cb->fd->type, (int)cb->fd->dbsSize, cb->fd->_comparator, cb->fd->dbsOffs);
+                }
+            }
+        }
+    }
+#endif    
+    db->modified = true;
+    new_data = (char*)db->putRow(fetch_stmt->cursor->currId, offs);    
+
+    fd = first;
+    offs = table->fixedSize;
+    do { 
+        if (fd->type == dbField::tpArray || fd->type == dbField::tpString || fd->type == dbField::tpWString) 
+        { 
+            int len = ((dbVarying*)(old_data + fd->dbsOffs))->size;
+            printf(" array size=%d.\n",len);
+            offs = DOALIGN(offs, fd->components->alignment);
+            ((dbVarying*)(new_data + fd->dbsOffs))->offs = (int)offs;
+            for (cb = fetch_stmt->columns; cb != NULL; cb = cb->next) { 
+                if (cb->fd == fd) { 
+                    len = cb->unpackArray_multy(new_data, offs);
+                    break;
+                }
+            }
+            ((dbVarying*)(new_data + fd->dbsOffs))->size = len;
+            if (cb == NULL) { 
+                memcpy(new_data + offs, 
+                       old_data + ((dbVarying*)(old_data + fd->dbsOffs))->offs,
+                       len*fd->components->dbsSize);
+                if (fd->components->type == dbField::tpString) { 
+                    dbVarying* new_str = (dbVarying*)(new_data + offs);
+                    dbVarying* old_str = (dbVarying*)(old_data + ((dbVarying*)(old_data + fd->dbsOffs))->offs);
+                    int relOffs = len*sizeof(dbVarying);
+                    offs += relOffs;
+                    while (--len >= 0) { 
+                        int strlen = old_str->size;
+                        new_str->offs = relOffs;
+                        memcpy(new_data + offs, (char*)old_str + old_str->offs, strlen);
+                        relOffs += strlen - sizeof(dbVarying);
+                        offs += strlen;
+                        old_str += 1;
+                        new_str += 1;
+                    }
+                } else if (fd->components->type == dbField::tpWString) { 
+                    dbVarying* new_str = (dbVarying*)(new_data + offs);
+                    dbVarying* old_str = (dbVarying*)(old_data + ((dbVarying*)(old_data + fd->dbsOffs))->offs);
+                    int relOffs = len*sizeof(dbVarying);
+                    offs += relOffs;
+                    while (--len >= 0) { 
+                        int strlen = old_str->size*sizeof(wchar_t);
+                        new_str->offs = relOffs;
+                        memcpy(new_data + offs, (char*)old_str + old_str->offs, strlen);
+                        relOffs += strlen - sizeof(dbVarying);
+                        offs += strlen;
+                        old_str += 1;
+                        new_str += 1;
+                    }
+                } else {
+                    offs += len*fd->components->dbsSize;
+                }                   
+            }
+        } else {             
+            for (cb = fetch_stmt->columns; cb != NULL; cb = cb->next) { 
+                if (cb->fd == fd) { 
+                    if (cb->cliType == cli_autoincrement) { // autoincrement column is ignored
+                        cb = NULL;
+                        break;
+                    }
+                    cb->unpackScalar_multy(new_data, false);
+                    break;
+                }
+            }
+            if (cb == NULL) { 
+                memcpy(new_data + fd->dbsOffs, old_data + fd->dbsOffs, 
+                       fd->dbsSize);
+            }
+        }
+    } while ((fd = fd->next) != first);
+
+    delete[] old_data;
+
+#if 0
+    for (cb = fetch_stmt->columns; cb != NULL; cb = cb->next) { 
+        if (cb->fd->attr & dbFieldDescriptor::Updated) {            
+            cb->fd->attr &= ~dbFieldDescriptor::Updated;
+            if (cb->fd->indexType & HASHED) { 
+                dbHashTable::insert(db, cb->fd, fetch_stmt->cursor->currId, 0);
+            }
+            if (cb->fd->indexType & INDEXED) { 
+                if (cb->fd->type == dbField::tpRectangle) { 
+                    dbRtree::insert(db, cb->fd->tTree, fetch_stmt->cursor->currId,
+                                    cb->fd->dbsOffs);
+                } else { 
+                    dbTtree::insert(db, cb->fd->tTree, fetch_stmt->cursor->currId, 
+                                    cb->fd->type, (int)cb->fd->dbsSize, cb->fd->_comparator, cb->fd->dbsOffs);
+                }
+            }
+        }
+    }
+#endif
+    db->precommit();
+    response = cli_ok;
+    return response;
+}    
 
             
 char* dbServer::checkColumns(dbStatement* stmt, int n_columns, 
@@ -2713,7 +3511,7 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
     TRACE_MSG((" search_for_filter num1= %d \n",num));
 
     if(num>0)
-      ;
+      update_insert_data(stmt, cli_cmd_update, stmt->buf+ stmt->n_params);
     else
       alloc_store(stmt, desc, size, oid);
     
@@ -2728,10 +3526,9 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
       TRACE_MSG((" search_for_filter num= %d \n",num));
 
       if(num>0)
-        ;
+        update_insert_data(stmt, cli_cmd_update, stmt->buf+ stmt->n_params);
       else
         alloc_store(stmt, desc, size, oid);
-
     }
 /// should add auto precommit() 
 
