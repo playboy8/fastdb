@@ -175,6 +175,7 @@ class FASTDB_DLL_ENTRY dbServer {
     bool update_insert_data(dbStatement* stmt, int stmt_id, char* new_data);
     bool insert(dbSession* session, int stmt_id, char* data, bool prepare);
     bool insert_multy(dbSession* session, int stmt_id, char* data, size_t data_len);
+    bool insert_multy_with_filter(dbSession* session, int stmt_id, char* data, size_t data_len);
     bool search_for_filter(dbSession* session,dbStatement* stmt);
     bool alloc_store(dbStatement* stmt, dbTableDescriptor* desc, size_t size, oid_t& oid);
     size_t parser_data_from_msg(dbTableDescriptor* desc, dbStatement* stmt, char** msg);

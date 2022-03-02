@@ -182,8 +182,36 @@ MSDB:   FASTDB 无盘模式
   50000            20               1             629                         79491.255962
   20000            1                1             4309                        4641.448132
 
+// 测试批量发送且在服务端过滤主键相同数据并更新的接口性能
+cli_insert_multy_with_filter () 接口测试
 
+情景1： 本地数据库服务， 批量发送数据，发送一批新的记录后， 在发送一批已存在的记录
 
+ Local mode , IP: 127.0.0.1:6100
+ IPS:  333333.333333      totle_insert_count:1000     record_num:20  
+ IPS:  142857.142857      totle_insert_count:1000     record_num:50  
+ IPS:  500000.000000      totle_insert_count:1000     record_num:100  
+ IPS:  333333.333333      totle_insert_count:1000     record_num:200  
+ IPS:  500000.000000      totle_insert_count:1000     record_num:500  
+ IPS:  333333.333333      totle_insert_count:1000     record_num:1000  
+
+情景2： 本地数据库服务， 批量发送数据，每一批数据中都是新记录和已存在的记录交替穿插 
+ Local mode , IP: 127.0.0.1:6100
+ IPS:  251889.168766      totle_insert_count:100000     record_num:20  
+ IPS:  364963.503650      totle_insert_count:100000     record_num:50  
+ IPS:  362318.840580      totle_insert_count:100000     record_num:100  
+ IPS:  425531.914894      totle_insert_count:100000     record_num:200  
+ IPS:  400000.000000      totle_insert_count:100000     record_num:500  
+ IPS:  434782.608696      totle_insert_count:100000     record_num:1000 
+
+情景2： 远程数据库服务， 批量发送数据，每一批数据中都是新记录和已存在的记录交替穿插 
+ CLI mode , IP: 192.168.5.191:6100
+ IPS:  70521.861777      totle_insert_count:100000     record_num:20  
+ IPS:  140449.438202      totle_insert_count:100000     record_num:50  
+ IPS:  194552.529183      totle_insert_count:100000     record_num:100  
+ IPS:  270270.270270      totle_insert_count:100000     record_num:200  
+ IPS:  344827.586207      totle_insert_count:100000     record_num:500  
+ IPS:  373134.328358      totle_insert_count:100000     record_num:1000 
 
 
       

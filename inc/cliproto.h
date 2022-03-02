@@ -43,7 +43,8 @@ enum cli_commands {
     cli_cmd_lock,
     cli_cmd_last,
     cli_cmd_get_multy,
-    cli_cmd_insert_multy
+    cli_cmd_insert_multy,
+    cli_cmd_insert_multy_filter
 };
 
 static const int sizeof_type[] = { 

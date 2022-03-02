@@ -2585,14 +2585,14 @@ bool dbServer::update_insert_data(dbStatement* stmt, int stmt_id, char* new_data
     // get last record
     if (!fetch_stmt->cursor->gotoLast()) { 
         response = cli_not_found;
+        return response;
     } 
 
     fetch_stmt->recored_len = stmt->recored_len;
     fetch_stmt->recored_len = stmt->recored_len;
     fetch_stmt->recored_off = stmt->recored_off;
 
-    printf(" fetch_stmt->recored_off=%d . \n",fetch_stmt->recored_off);
-
+//    printf(" fetch_stmt->recored_off=%d . \n",fetch_stmt->recored_off);
     fetch_to_buf(fetch_stmt, result);
 
     // compare data in buffer, flags changes.
@@ -2668,7 +2668,6 @@ bool dbServer::update_insert_data(dbStatement* stmt, int stmt_id, char* new_data
         if (fd->type == dbField::tpArray || fd->type == dbField::tpString || fd->type == dbField::tpWString) 
         { 
             int len = ((dbVarying*)(old_data + fd->dbsOffs))->size;
-            printf(" array size=%d.\n",len);
             offs = DOALIGN(offs, fd->components->alignment);
             ((dbVarying*)(new_data + fd->dbsOffs))->offs = (int)offs;
             for (cb = fetch_stmt->columns; cb != NULL; cb = cb->next) { 
@@ -3484,10 +3483,6 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
 
     data_head = data;
     offs = parser_data_from_multyinsert_msg(desc, stmt, &data);
-
-//    TRACE_MSG((" server:: insert_multy()  stmt->recored_len=%d,  record_num=%d,   stmt->recored_off= %d \n", stmt->recored_len, record_num,stmt->recored_off ));
-
-    // check data 
     if( data > data_head)
     {
          size_t cal_record_len = data - data_head;
@@ -3497,40 +3492,17 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
             response = cli_unsupported_type;
             goto return_response_multy;
          }
-///         TRACE_MSG(("check msg data success ! \n"));
     }
 
     size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
 
-//    TRACE_MSG((" size= %d,  offs=%d, j= %d \n",size,offs,j));//  size= 124,  offs=118.
-
-
-
-  num = search_for_filter(session,stmt);
-
-    TRACE_MSG((" search_for_filter num1= %d \n",num));
-
-    if(num>0)
-      update_insert_data(stmt, cli_cmd_update, stmt->buf+ stmt->n_params);
-    else
-      alloc_store(stmt, desc, size, oid);
-    
-
-    
+    alloc_store(stmt, desc, size, oid);
 
     for(j = 1; j < record_num ; j++ )
     {
-        update_cb(desc,stmt,0);
-       num = search_for_filter(session,stmt);
-
-      TRACE_MSG((" search_for_filter num= %d \n",num));
-
-      if(num>0)
-        update_insert_data(stmt, cli_cmd_update, stmt->buf+ stmt->n_params);
-      else
-        alloc_store(stmt, desc, size, oid);
+      update_cb(desc,stmt,0);
+      alloc_store(stmt, desc, size, oid);
     }
-/// should add auto precommit() 
 
     db->precommit();
   //  db->commit();
@@ -3550,7 +3522,124 @@ bool dbServer::insert_multy(dbSession* session, int stmt_id, char* data, size_t 
     return session->sock->write(reply_buf, sizeof reply_buf);
 }    
 
+bool dbServer::insert_multy_with_filter(dbSession* session, int stmt_id, char* data, size_t data_len)
+{
+    const char* msg_head = data;
+    char* data_head = data;
+    dbStatement* stmt = findStatement(session, stmt_id);
+    dbTableDescriptor* desc = NULL;
+    dbColumnBinding* cb;
+    int4   response;
+    char   reply_buf[sizeof(cli_oid_t) + 8];
+    char*  dst;
+    oid_t  oid = 0;
+    size_t offs;
+    size_t size;
+    int    i,j, n_columns;
+    dbFieldDescriptor* fd;
+    uint32_t record_num = 0;
+    bool prepare = stmt ? (!stmt->prepared) : true; ;
+    int num;
 
+    if (stmt == NULL) { 
+        if (!prepare) { 
+            response = cli_bad_statement;
+            goto return_response_multy;
+        }
+        stmt = new dbStatement(stmt_id);
+        stmt->next = session->stmts;
+        session->stmts = stmt;
+    } else {
+        if (prepare) { 
+            stmt->reset();
+        } else if ((desc = stmt->table) == NULL) {
+            response = cli_bad_descriptor;
+            goto return_response_multy;
+        }
+    }
+    if (prepare) { 
+        session->scanner.reset(data);
+        if (session->scanner.get() != tkn_insert 
+            || session->scanner.get() != tkn_into
+            || session->scanner.get() != tkn_ident) 
+        {
+            response = cli_bad_statement;
+            goto return_response_multy;
+        }
+        desc = db->findTable(session->scanner.ident);
+        if (desc == NULL) {     
+            response = cli_table_not_found;
+            goto return_response_multy;
+        }
+        data += strlen(data)+1;
+        n_columns = *data++ & 0xFF;
+
+        // parser clo name and create columebonding
+        //data = checkColumns(stmt, n_columns, desc, data, response, false);
+        data = checkColumns_multy(stmt, n_columns, desc, data, response, false); // create columebonding (add array num).
+        if (response != cli_ok) { 
+            goto return_response_multy;
+        }
+        data = unpack2((char*)(&stmt->recored_len),data);       
+        stmt->table = desc;
+        stmt->prepared = true;
+
+    }
+    // parser data pos, bonding data to cb struct.
+    data = unpack2((char*)(&record_num),data);
+    data_head = data;
+    offs = parser_data_from_multyinsert_msg(desc, stmt, &data);
+
+    if( data > data_head)
+    {
+         size_t cal_record_len = data - data_head;
+         size_t cal_all_data_len = data_len - (data_head - msg_head); 
+         if(cal_record_len != stmt->recored_len ||  (stmt->recored_len * record_num != cal_all_data_len ))  
+         {
+            response = cli_unsupported_type;
+            goto return_response_multy;
+         }
+    }
+
+    size = DOALIGN(offs, sizeof(wchar_t)) + sizeof(wchar_t); // reserve one byte for not initialize strings
+
+    num = search_for_filter(session,stmt);
+
+//    TRACE_MSG((" search_for_filter num1= %d \n",num));
+
+    if(num>0)
+      update_insert_data(stmt, cli_cmd_update, stmt->buf+ stmt->n_params);
+    else
+      alloc_store(stmt, desc, size, oid);
+    
+    for(j = 1; j < record_num ; j++ )
+    {
+      update_cb(desc,stmt,0);
+      num = search_for_filter(session,stmt);
+     // TRACE_MSG((" search_for_filter num= %d \n",num));
+      if(num>0)
+        update_insert_data(stmt, cli_cmd_update, stmt->buf+ stmt->n_params);
+      else
+        alloc_store(stmt, desc, size, oid);
+    }
+/// should add auto precommit() 
+    db->precommit();
+  //  db->commit();
+    response = cli_ok;
+  return_response_multy:
+    pack4(reply_buf, response);
+    if (desc == NULL) { 
+        pack4(reply_buf+4, 0);
+    } else { 
+#ifdef AUTOINCREMENT_SUPPORT
+        pack4(reply_buf+4, desc->autoincrementCount);
+#else
+        pack4(reply_buf+4, ((dbTable*)db->getRow(desc->tableId))->nRows);
+#endif
+    }
+    pack_oid(reply_buf+8, oid);
+    return session->sock->write(reply_buf, sizeof reply_buf);
+}    
 
 bool dbServer::insert(dbSession* session, int stmt_id, char* data, bool prepare)
 {
@@ -4190,6 +4279,9 @@ void dbServer::serveClient()
               case cli_cmd_insert_multy:
                 online = insert_multy(session, req.stmt_id, msg, msg.used_size());
                 break;                         
+              case cli_cmd_insert_multy_filter:
+                online = insert_multy_with_filter(session, req.stmt_id, msg, msg.used_size());
+                break;                  
               case cli_cmd_describe_table:
                 online = describe_table(session, (char*)msg);
                 break;

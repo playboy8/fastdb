@@ -635,7 +635,7 @@ int cli_fetch(int statement, int for_update)
     }
 
 
-memory_dump(buf, msg_size);
+    //memory_dump(buf, msg_size);
 
     assert(msg_size == (size_t)(p - buf.base()));
     if (!stmt->session->sock->write(buf, msg_size)) { 
@@ -1003,7 +1003,6 @@ static int cli_send_multy_columns(int statement, int cmd, void* records, u_int16
     p = pack2(p,record_num);
    // *((cli_int2_t*)p) = record_num;  p +=2 ;
    
-
     memcpy(p,records, msg_size2);
     p += msg_size2;
 
@@ -1188,18 +1187,42 @@ static void init_data(int statement, void* records, int record_size, int record_
                     break;
                 }            
             }
-            //src += ((cb->arr_len > 0) ? cb->arr_len : 1)*size  ;
         }    
     }
 }
 
 int cli_insert_multy(int statement, void* records, u_int16_t record_num, cli_oid_t* oid)
 {
-//    int rc = cli_send_columns(statement, cli_cmd_insert_multy);
-
- //   init_data(statement, records, record_size, record_num);
- //   printf(" init data ok \n");
     int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy, records, record_num);
+    if (rc == cli_ok) { 
+        char buf[sizeof(cli_oid_t) + 8];
+        statement_desc* s = statements.get(statement);
+        if (!s->session->sock->read(buf, sizeof buf)) { 
+            rc = cli_network_error;
+        } else { 
+            rc = unpack4(buf);
+            s->prepared = true;
+            s->oid = unpack_oid(buf + 8);
+            if (oid != NULL) { 
+                *oid = s->oid;
+            }
+           if (s->autoincrement) {
+               int4 rowid = unpack4(buf + 4);
+               for (column_binding* cb = s->columns; cb != NULL; cb = cb->next) {
+                   if (cb->var_type == cli_autoincrement) {
+                       *(int4*)cb->var_ptr = rowid;
+                   }
+               }
+           }
+        }
+    }
+    return rc;
+}
+
+
+int cli_insert_multy_with_filter(int statement, void* records, u_int16_t record_num, cli_oid_t* oid)
+{
+    int rc = cli_send_multy_columns(statement, cli_cmd_insert_multy_filter, records, record_num);
     if (rc == cli_ok) { 
         char buf[sizeof(cli_oid_t) + 8];
         statement_desc* s = statements.get(statement);

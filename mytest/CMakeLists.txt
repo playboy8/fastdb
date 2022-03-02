@@ -57,6 +57,12 @@ target_link_libraries(cliwrite2   PUBLIC
                                 ${vendor_dir}/lib/libcli.so 
                                 pthread m  )
 
+add_executable( cliwrite2_filter  ${sources} ${CMAKE_SOURCE_DIR}/cliwrite2_filter.cpp )
+target_link_libraries(cliwrite2_filter   PUBLIC
+                                ${vendor_dir}/lib/libcli.so 
+                                pthread m  )
+                                
+
 add_executable( cliread  ${sources} ${CMAKE_SOURCE_DIR}/cliread.cpp )
 target_link_libraries(cliread   PUBLIC
                                 ${vendor_dir}/lib/libcli.so 

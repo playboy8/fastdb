@@ -153,7 +153,7 @@ int diff_count::show_diff(int& totle_delay , int& core_delay, bool show)
 //    std::cout << " totle_delay:" << totle_delay << "\t core_delay:" << core_delay << "\ttimestap.back:" << timestap.back() << std::endl;
     if(show)
     {
-        std::cout << " totle_delay : "  << totle_delay << "\t core_delay: " << core_delay <<  std::endl;
+    //    std::cout << " totle_delay : "  << totle_delay << "\t core_delay: " << core_delay <<  std::endl;
 
     }
     return diff;
