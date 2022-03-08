@@ -4,8 +4,6 @@ set(name  fast_demo)
 project (${name})
 
 
-
-
 set(vendor_dir /opt/fastdb64 )
 set(boost_inc_dir ${vendor_dir}/boost/boost_1_77_0/boost_out/lib )
 set(boost_lib_dir ${vendor_dir}/boost/boost_1_77_0/boost_out/include )
@@ -22,13 +20,7 @@ endif()
 file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
 # -D_DEBUG  -g -ggdb3 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -D_DEBUG  -g -ggdb3   -O1  -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
-
-#g++ -DHAVE_CONFIG_H -I. -I../inc -I../inc    -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -MT guess.o -MD -MP -MF .deps/guess.Tpo -c -o guess.o guess.cpp
-#/bin/sh ../libtool --tag=CXX   --mode=link g++  -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing   -o guess guess.o ../src/libfastdb.la -lpthread -lm 
-#g++ -Wno-invalid-offsetof -Wall -DNDEBUG -O2 -fno-strict-aliasing -o .libs/guess guess.o  ../src/.libs/libfastdb.so -lpthread -lm  -Wl,--rpath -Wl,/opt/fastdb64/lib
-
-#link_directories(${vendor_dir}/lib)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11 -ggdb3   -O2 -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
 
 include_directories(${vendor_dir}/include)
 

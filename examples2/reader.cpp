@@ -6,10 +6,7 @@
 #include <thread>
 #include <vector>
 
-
 USE_FASTDB_NAMESPACE
-
-
  
 class Record
 {
@@ -20,7 +17,7 @@ public:
     int4 id;           // id 作为主键唯一标识
     bool value;    
     int1 value1;
-    int2 value2;        // value 作为保存值
+    int2 value2;        
     int4 value3;   
     int8 value4; 
     int4 value5;   
@@ -66,94 +63,58 @@ public:
                       FIELD( value20),
                       FIELD( value21)  ) );
 };
- 
-// 创建 Record 数据表
+
 REGISTER(Record);
  
 
-    #define ROW 10
-    #define COL 2
+#define ROW 10
+#define COL 2
 
-//! 查询数据
 long long selectRecord( int  times)
 {
-//   printf("####### selectRecord #######\n");
-   
-   long long sum = 0 ;
-
-
-   
-
+    long long sum = 0 ;
     diff_count diff;
     diff.start(); 
 
-
-
    for (size_t i = 0; i < times; i++)
    {
-        dbCursor<Record> cursorRead;  // 只读游标对象
-        int n = cursorRead.select();  // 查询
+        dbCursor<Record> cursorRead;  
+        int n = cursorRead.select(); 
         sum += n;
         while (cursorRead.next())
         {
             /* code */
-        }
-        
+        }        
    }
-
     diff.add_snap();
     int a,b;
     diff.show_diff(a,b,true);
-
     printf(" totole serch records: %lld  ,  totletime_ms: %lld      OPS:%f \n", sum, a , (sum*1000 *1.0 / a*1.0) );
-
    return sum;
 }
 
-void test_insert(int test_count, int test_par[][COL], int test_result[][COL], int threadid)
+void test_select(int test_count, int test_par[][COL], int test_result[][COL], int threadid)
 {
     unsigned long initsize = 3 *1024* 1024* 1024UL;
     unsigned long extqn = 4194304UL;
     unsigned long initindexsize = 524288UL;
-   dbDatabase db(dbDatabase::dbConcurrentRead, initsize,extqn,initindexsize,1, 6 );
-//   printf(" will open database  threadid:%d\n ",threadid);
-//   sleep(1);
+    dbDatabase db(dbDatabase::dbConcurrentRead, initsize,extqn,initindexsize,1, 6 );
+
     if (db.open(_T("testpar"),nullptr,3))
     {
-//    printf(" opened database  threadid:%d\n ",threadid);
-//    sleep(1);
-
-
         do
         {
-        // 插入数据
-
-        // 查询数据
-
- 
-         selectRecord(100000);
-
-        //sleep(1);
-            
+            selectRecord(100000);            
         }
         while (false);
-
-
-
-
-
-
     }
     else
     {
         printf(" open database failed ! ");
     }
-    //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+
     if(db.isOpen())
     {
-        // 删除所有数据
-       // removeAllRecord();
-        // 关闭数据库
         db.close();
     }   
 }
@@ -161,12 +122,10 @@ void test_insert(int test_count, int test_par[][COL], int test_result[][COL], in
 
 int main()
 {
-    // 打开数据库 testpar
     int th_count =1;
-
     const int test_count = 10 *10000;
-    int test_par[ROW][COL];  // 批量测试参数
-    int test_result[th_count][ROW][2]={0,};  // 批量测试参数
+    int test_par[ROW][COL];  
+    int test_result[th_count][ROW][2]={0,}; 
     for(int i = 0 ; i < ROW; i++)
     {
         test_par[i][0] = 2*i+1;
@@ -177,19 +136,16 @@ int main()
    
     for(int i= 0; i< th_count; i++)
     {
-        std::thread  th(test_insert,test_count,test_par,test_result[i], i);
+        std::thread  th(test_select,test_count,test_par,test_result[i], i);
         test_th.emplace_back(std::move(th));
     }
-    //test_insert(test_count, test_par, test_result);
 
-     for(auto &t : test_th)
-     {
-         if(t.joinable())
-            t.join();
-     }
+    for(auto &t : test_th)
+    {
+        if(t.joinable())
+        t.join();
+    }
      
-
-    
    return 0;
 }
 

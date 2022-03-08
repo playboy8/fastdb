@@ -6,7 +6,7 @@
  *                          Last update: 13-Jan-2000 K.A. Knizhnik   * GARRET *
  *-------------------------------------------------------------------*--------*
  * Test for FastDB call level interface 
- * Spawn "subsql  clitest.sql" to start CLI server. 
+ * test cli_insert_multy .
  *-------------------------------------------------------------------*--------*/
 
 #include <fastdb/cli.h>
@@ -22,7 +22,7 @@ typedef struct Record
     cli_int4_t id;           // id 作为主键唯一标识
     cli_bool_t value;    
     cli_int1_t value1;
-    cli_int2_t value2;        // value 作为保存值
+    cli_int2_t value2;        
     cli_int4_t value3;   
     cli_int8_t value4; 
     cli_int4_t value5;   
@@ -120,10 +120,9 @@ int main(int arg, char **argv)
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
     int table_created = 0;
-
     cli_oid_t oid;
     Record p;
-    char* serverURL;
+    char* serverURL ;
     
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -146,7 +145,16 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-    statement = cli_statement(session, "select * from Record");
+    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor), 
+			  record_descriptor);
+    if (rc == cli_ok) { 
+	table_created = 1;
+    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
+	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
+	return EXIT_FAILURE;
+    } 
+
+    statement = cli_statement(session, "insert into Record");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
@@ -154,102 +162,56 @@ int main(int arg, char **argv)
 
     if(false == cli_column2_bind(statement,&p))
     {
-        fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
+        fprintf(stderr, "cli_column2 2 failed with code %d\n", rc);
         return EXIT_FAILURE;
     }
+
+    u_int16_t record_num = 300;
+    Record record_arry[record_num];
+
+    memset(record_arry, 0, sizeof(record_arry));
+    for(int i=0 ; i < record_num; i++)
+    {
+        record_arry[i].id = i+10;
+        record_arry[i].value = i%2 ? true: false;
+        record_arry[i].value1 = i+2;
+        record_arry[i].value2 = i+3;
+        record_arry[i].value3 = i+4;
+        record_arry[i].value4 = i+5;
+        record_arry[i].value5 = i+6;
+        record_arry[i].value6 = i+7;
+        record_arry[i].value7 = i+8;
+        record_arry[i].value8 = i+9;
+        record_arry[i].value9 = i+10;
+        record_arry[i].value10 = i+11;
+        strcpy((char*)record_arry[i].value21,"hello ");
+    }
+
+    fprintf(stderr, " record_len:%d,   record_num:%d,  \n", sizeof(record_arry[0]), record_num);
 
     int a , b ;
     diff_count diff;
     diff.start();
 
-    int count = 1;
+    int count = 1000 ;
     int count_num = count;
-    long long sum_select = 0;
-    size_t read_count = 0;
-    while (read_count < count)
+    while (count-- > 0)
     { 
-        rc = cli_fetch(statement, cli_view_only);
-        count--;
-        if (rc < 0 ) { 
-            fprintf(stderr, "cli_fetch failed with code %d\n", rc);
+        rc = cli_insert_multy(statement,record_arry, record_num, &oid);
+        if (rc != cli_ok) { 
+            fprintf(stderr, "cli_insert failed with code %d\n", rc);
             return EXIT_FAILURE;
-        }  
-        else
-        {          
-            sum_select += rc;
-        }   
-
-        while ((rc =  cli_get_multy(statement)) == cli_ok)
-        {            
-            #if 0
-            std::cout << "new record:\n id    \t" <<  int(p.id); 
-            std::cout << "\n value \t" <<  int(p.value);    
-            std::cout << "\n value1\t" <<  int(p.value1);
-            std::cout << "\n value3\t" <<  p.value3;   
-            std::cout << "\n value4\t" <<  p.value4; 
-            std::cout << "\n value5\t" <<  p.value5;   
-            std::cout << "\n value6\t" <<  p.value6;   
-            std::cout << "\n value7\t" <<  p.value7; 
-            std::cout << "\n value8\t" <<  p.value8;  
-            std::cout << "\n value9\t" <<  p.value9;   
-            std::cout << "\n value10\t" <<  p.value10; 
-            std::cout << "\n value11\t" <<  p.value11;  
-            std::cout << "\n value12\t" <<  p.value12;   
-            std::cout << "\n value13\t" <<  p.value13; 
-            std::cout << "\n value14\t" <<  p.value14;  
-            std::cout << "\n value15\t" <<  p.value15;   
-            std::cout << "\n value16\t" <<  p.value16; 
-            std::cout << "\n value17\t" <<  p.value17;   
-            std::cout << "\n value18\t" <<  p.value18;   
-            std::cout << "\n value19\t" <<  p.value19; 
-            std::cout << "\n value20\t" <<  p.value20; 
-            std::cout << "\n value21\t" <<  (char*)(p.value21);
-            std::cout << "\n";
-            #endif
-
-                read_count++;
-                // std::cout << "p.id:" << p.id << "\t p.value:" << p.value << "\t p.value1:" << p.value1 << std::endl; 
-                while (rc = cli_parser_next(statement)== cli_ok)
-                {
-                    read_count++;
-                    #if 0
-                    std::cout << "new record:\n id    \t" <<  int(p.id); 
-                    std::cout << "\n value \t" <<  int(p.value);    
-                    std::cout << "\n value1\t" <<  int(p.value1);
-                    std::cout << "\n value3\t" <<  p.value3;   
-                    std::cout << "\n value4\t" <<  p.value4; 
-                    std::cout << "\n value5\t" <<  p.value5;   
-                    std::cout << "\n value6\t" <<  p.value6;   
-                    std::cout << "\n value7\t" <<  p.value7; 
-                    std::cout << "\n value8\t" <<  p.value8;  
-                    std::cout << "\n value9\t" <<  p.value9;   
-                    std::cout << "\n value10\t" <<  p.value10; 
-                    std::cout << "\n value11\t" <<  p.value11;  
-                    std::cout << "\n value12\t" <<  p.value12;   
-                    std::cout << "\n value13\t" <<  p.value13; 
-                    std::cout << "\n value14\t" <<  p.value14;  
-                    std::cout << "\n value15\t" <<  p.value15;   
-                    std::cout << "\n value16\t" <<  p.value16; 
-                    std::cout << "\n value17\t" <<  p.value17;   
-                    std::cout << "\n value18\t" <<  p.value18;   
-                    std::cout << "\n value19\t" <<  p.value19; 
-                    std::cout << "\n value20\t" <<  p.value20; 
-                    std::cout << "\n value21\t" <<  (char*)(p.value21);
-                    std::cout << "\n"; 
-                    #endif                   
-                }            
-        } 
-       if(rc < 0 ) std::cout << " cli_get_multy failed, rc:" <<  rc << std::endl;        
+        }     
     }
-
     diff.add_snap();
     diff.show_diff(a,b, true);
-    printf(" IPS:  %8f      totle_select_count:%lld  ,  read_count=%d  \n", sum_select*1.0 * 1000  /  a ,  sum_select, read_count );
-
     cli_commit(session);
+
+    printf(" IPS:  %8f      totle_insert_count:%lld    \n", record_num* count_num*1.0 * 1000  /  a ,record_num* count_num );
+
     rc = cli_free(statement);
     if (rc != cli_ok) { 
-        fprintf(stderr, "cli_free failed with code %d\n", rc);
+        fprintf(stderr, "cli_free failed with code %d\n", rc);    
         return EXIT_FAILURE;
     }
 

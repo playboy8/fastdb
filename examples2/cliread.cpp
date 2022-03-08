@@ -6,7 +6,7 @@
  *                          Last update: 13-Jan-2000 K.A. Knizhnik   * GARRET *
  *-------------------------------------------------------------------*--------*
  * Test for FastDB call level interface 
- * Spawn "subsql  clitest.sql" to start CLI server. 
+ * test cli_get_last .
  *-------------------------------------------------------------------*--------*/
 
 #include <fastdb/cli.h>
@@ -15,8 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../opt/public.h"
-#include <unistd.h> 
-
+#include <unistd.h>
+ 
 
 #pragma pack (1)
 typedef struct Record
@@ -24,7 +24,7 @@ typedef struct Record
     cli_int4_t id;           // id 作为主键唯一标识
     cli_bool_t value;    
     cli_int1_t value1;
-    cli_int2_t value2;        // value 作为保存值
+    cli_int2_t value2;       
     cli_int4_t value3;   
     cli_int8_t value4; 
     cli_int4_t value5;   
@@ -115,18 +115,16 @@ bool cli_column2_bind(int statement, Record* p)
     return true;
 }
 
-
 int main(int arg, char **argv)
-{
+{      
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
     int table_created = 0;
-
     cli_oid_t oid;
     Record p;
     char* serverURL ;
-    
+
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
         serverURL = "192.168.5.191:6100" ;
@@ -148,99 +146,81 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-#if 1
-    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor), 
-			  record_descriptor);
-    if (rc == cli_ok) { 
-	table_created = 1;
-    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
-	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
-	return EXIT_FAILURE;
-    } 
-#endif
-    statement = cli_statement(session, "insert into Record");
+    statement = cli_statement(session, "select * from Record");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
     }
 
-    if(false == cli_column2_bind(statement,&p))
-    {
-        fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
-        return EXIT_FAILURE;
-    }
+   if(false == cli_column2_bind(statement,&p))
+   {
+       fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
+       return EXIT_FAILURE;
+   }
 
-    p.id = 1;
-    p.value = 2;
-    p.value1 =3 ;
-
-    int a , b ;
-    diff_count diff;
-    diff.start();
-
-    int count =  50 ;
+    int count = 2;
     int count_num = count;
-    while (count-- > 0)
-    { 
+    long long sum_select = 0;
+ 
+    rc = cli_fetch(statement, cli_view_only);
+    if (rc < 0 ) { 
+        fprintf(stderr, "cli_fetch failed with code %d\n", rc);
+        return EXIT_FAILURE;
+    }  
+    else
+    {          
+        sum_select += rc;
+    }   
 
-        // 逐条发送  
-        p.id = count;
-        p.value = count+1;
-        p.value1 = count+2;
-        p.value2 = count+3;
-        p.value3 = count+4;
-        p.value4 = count+5;
-        p.value5 = count+6;
-        p.value6 = count+7;
-        p.value7 = count+8;
-        p.value8 = count+9;
-        p.value21[0] = 0;
-        p.value21[1] = 1;
-        memset(p.value21,3,sizeof(p.value21));
-        rc = cli_insert(statement, &oid);
-
-        if (rc != cli_ok) { 
-            fprintf(stderr, "cli_insert failed with code %d\n", rc);
-            return EXIT_FAILURE;
-        }     
-
-        if((rc = cli_precommit(session))!= cli_ok)
-        {
-            fprintf(stderr, "cli_precommit failed with code %d\n", rc);
-            return EXIT_FAILURE;            
-        }
-        fprintf(stderr, "cli_precommit success: %d\n", rc);
-        sleep(1);
-    }
-
-    diff.add_snap();
-//    diff.show_diff(a,b, true);
-//    std::cout << "IPS:" << count_num*1.0 * 1000  /  a  << std::endl ;
-
-    if((rc = cli_commit(session))!= cli_ok)
+    std::cout << "fitech data nums :" <<  rc << "\n";
+    if ((rc = cli_get_last(statement)) == cli_ok)
     {
-        fprintf(stderr, "cli_commit failed with code %d\n", rc);
-        return EXIT_FAILURE;            
-    }
+        std::cout << "last record:\n id    \t" <<  int(p.id); 
+        std::cout << "\n value \t" <<  int(p.value);    
+        std::cout << "\n value1\t" <<  int(p.value1);
+        std::cout << "\n value3\t" <<  p.value3;   
+        std::cout << "\n value4\t" <<  p.value4; 
+        std::cout << "\n value5\t" <<  p.value5;   
+        std::cout << "\n value6\t" <<  p.value6;   
+        std::cout << "\n value7\t" <<  p.value7; 
+        std::cout << "\n value8\t" <<  p.value8;  
+        std::cout << "\n value9\t" <<  p.value9;   
+        std::cout << "\n value10\t" <<  p.value10; 
+        std::cout << "\n value11\t" <<  p.value11;  
+        std::cout << "\n value12\t" <<  p.value12;   
+        std::cout << "\n value13\t" <<  p.value13; 
+        std::cout << "\n value14\t" <<  p.value14;  
+        std::cout << "\n value15\t" <<  p.value15;   
+        std::cout << "\n value16\t" <<  p.value16; 
+        std::cout << "\n value17\t" <<  p.value17;   
+        std::cout << "\n value18\t" <<  p.value18;   
+        std::cout << "\n value19\t" <<  p.value19; 
+        std::cout << "\n value20\t" <<  p.value20; 
+        std::cout << "\n value21\t" <<  (char*)(p.value21);
+        std::cout << "\n";
+    } 
+    rc =cli_precommit(session);  
+    //sleep(6);     
 
     rc = cli_free(statement);
     if (rc != cli_ok) { 
         fprintf(stderr, "cli_free failed with code %d\n", rc);
         return EXIT_FAILURE;
     }
-
+ 
     if (table_created) { 
 	rc = cli_drop_table(session, "Record");
 	if (rc != cli_ok) { 
 	    fprintf(stderr, "cli_drop_table failed with code %d\n", rc);
 	    return EXIT_FAILURE;
-	}
+	    }
     }    
 
     if ((rc = cli_close(session)) != cli_ok) { 
         fprintf(stderr, "cli_close failed with code %d\n", rc);
         return EXIT_FAILURE;	
     }
+ 
     printf("*** CLI test sucessfully passed!\n");
     return EXIT_SUCCESS;
 }

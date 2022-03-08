@@ -6,7 +6,7 @@
  *                          Last update: 13-Jan-2000 K.A. Knizhnik   * GARRET *
  *-------------------------------------------------------------------*--------*
  * Test for FastDB call level interface 
- * Spawn "subsql  clitest.sql" to start CLI server. 
+ * test cli_insert_multy_with_filter .
  *-------------------------------------------------------------------*--------*/
 
 #include <fastdb/cli.h>
@@ -15,8 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../opt/public.h"
-#include <unistd.h>
- 
 
 #pragma pack (1)
 typedef struct Record
@@ -24,7 +22,7 @@ typedef struct Record
     cli_int4_t id;           // id 作为主键唯一标识
     cli_bool_t value;    
     cli_int1_t value1;
-    cli_int2_t value2;        // value 作为保存值
+    cli_int2_t value2;       
     cli_int4_t value3;   
     cli_int8_t value4; 
     cli_int4_t value5;   
@@ -73,6 +71,7 @@ static cli_field_descriptor record_descriptor[] = {
     {cli_array_of_int1,0,"value21"}
 };        
 
+
 bool cli_column2_bind(int statement, Record* p)
 {
     const int lens = 23;
@@ -115,8 +114,81 @@ bool cli_column2_bind(int statement, Record* p)
     return true;
 }
 
+
+
+// 删除所有数据
+int test_cli_fastdb_remove_all(int db_handle)
+{
+	int rc;
+	int sql_statement = cli_statement(db_handle, "select * from Record");
+	if (sql_statement < 0) {
+		printf("Error: cli_statement failed with code %d\n", sql_statement);
+		return -1;
+	}
+	Record p;
+	if (false == cli_column2_bind(sql_statement, &p)) // 设置查询的字段
+	{
+		printf("Error: cli_column2 2 failed with code %d\n", rc);
+		cli_free(sql_statement);
+		cli_abort(db_handle);
+		return -2;
+	}
+	rc = cli_fetch(sql_statement, cli_for_update);
+	if (rc < 0) {
+		printf("Error: cli_fetch failed with code %d\n", rc);
+		cli_free(sql_statement);
+		cli_abort(db_handle);
+		return -3;
+	}
+	
+	int count = rc;
+	if (count == 0)
+	{
+		printf("can not remove, no record exist\n");
+		cli_free(sql_statement);
+		cli_abort(db_handle);
+		return 0;
+	}
+
+	// 备注: cli_get_prev这一步不能少,否则cli_remove报错-13:cli_not_found
+	//while ((rc = cli_get_first(sql_statement)) == cli_ok) {
+	//	printf("id=%d\n", p.id);
+	//}
+    rc = cli_get_first(sql_statement);
+
+	if (rc != cli_not_found) {
+		printf("Error: cli_get_prev failed with code %d\n", rc);
+		cli_free(sql_statement);
+		cli_abort(db_handle);
+		return -4;
+	}
+
+	rc = cli_remove(sql_statement);
+	{
+		printf("cli_remove rc=[%d]\n", rc);
+		//return -4;
+	}
+
+	rc = cli_free(sql_statement);
+	if (rc != cli_ok) {
+		printf("Error: cli_free failed with code %d\n", rc);
+
+		//return -2;
+	}
+
+	rc = cli_commit(db_handle);
+	{
+		printf("cli_commit rc=[%d]\n", rc);
+		//return -5;
+	}
+
+	return count;
+}
+
+
+
 int main(int arg, char **argv)
-{      
+{
     char_t* databaseName = _T("testpar");
     char_t* filePath = nullptr;
     int session, statement, statement2, rc, len;
@@ -124,7 +196,7 @@ int main(int arg, char **argv)
     cli_oid_t oid;
     Record p;
     char* serverURL ;
-
+    
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
         serverURL = "192.168.5.191:6100" ;
@@ -146,89 +218,102 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-    statement = cli_statement(session, "select * from Record");
+    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor), 
+			  record_descriptor);
+    if (rc == cli_ok) { 
+	table_created = 1;
+    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
+	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
+	return EXIT_FAILURE;
+    } 
+
+    statement = cli_statement(session, "insert into Record");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
     }
 
-   if(false == cli_column2_bind(statement,&p))
-   {
-       fprintf(stderr, "cli_column 2 failed with code %d\n", rc);
-       return EXIT_FAILURE;
-   }
-
-  
-#if 1
-    int count = 2;
-    int count_num = count;
-    long long sum_select = 0;
- 
-    rc = cli_fetch(statement, cli_view_only);// cli_view_only);
-    if (rc < 0 ) { 
-        fprintf(stderr, "cli_fetch failed with code %d\n", rc);
-        return EXIT_FAILURE;
-    }  
-    else
-    {          
-        sum_select += rc;
-    }   
-
-    std::cout << "fitech data nums :" <<  rc << "\n";
-    if ((rc = cli_get_last(statement)) == cli_ok)
+    if(false == cli_column2_bind(statement,&p))
     {
-        // std::cout << "p.id:" << p.id << "\t p.value:" << p.value << "\t p.value1:" << p.value1 << std::endl; 
-        // printf("\t%d   %d     %d     %d   \n", p.id,   p.value ,  p.value1 ,  p.value2 );
-        std::cout << "last record:\n id    \t" <<  int(p.id); 
-        std::cout << "\n value \t" <<  int(p.value);    
-        std::cout << "\n value1\t" <<  int(p.value1);
-        std::cout << "\n value3\t" <<  p.value3;   
-        std::cout << "\n value4\t" <<  p.value4; 
-        std::cout << "\n value5\t" <<  p.value5;   
-        std::cout << "\n value6\t" <<  p.value6;   
-        std::cout << "\n value7\t" <<  p.value7; 
-        std::cout << "\n value8\t" <<  p.value8;  
-        std::cout << "\n value9\t" <<  p.value9;   
-        std::cout << "\n value10\t" <<  p.value10; 
-        std::cout << "\n value11\t" <<  p.value11;  
-        std::cout << "\n value12\t" <<  p.value12;   
-        std::cout << "\n value13\t" <<  p.value13; 
-        std::cout << "\n value14\t" <<  p.value14;  
-        std::cout << "\n value15\t" <<  p.value15;   
-        std::cout << "\n value16\t" <<  p.value16; 
-        std::cout << "\n value17\t" <<  p.value17;   
-        std::cout << "\n value18\t" <<  p.value18;   
-        std::cout << "\n value19\t" <<  p.value19; 
-        std::cout << "\n value20\t" <<  p.value20; 
-        std::cout << "\n value21\t" <<  (char*)(p.value21);
-        std::cout << "\n";
-    } 
-    rc =cli_precommit(session);  
-    //sleep(6);     
-
-#endif 
-
-#if 1
-    rc = cli_free(statement);
-    if (rc != cli_ok) { 
-        fprintf(stderr, "cli_free failed with code %d\n", rc);
+        fprintf(stderr, "cli_column2 2 failed with code %d\n", rc);
         return EXIT_FAILURE;
     }
-#endif
- 
+
+    int paramen[] = {20,50,100,200,500,1000 };
+    int totle_send = 1000;
+    for(int j=0; j < sizeof(paramen)/sizeof(paramen[0]); j++)
+    {
+        u_int16_t record_num = paramen[j];
+        Record record_arry[record_num];
+
+        memset(record_arry, 0, sizeof(record_arry));
+        for(int i=0 ; i < record_num; i++)
+        {
+            record_arry[i].id = (i%record_num)/2 + 1000000*j;
+            record_arry[i].value = i%2 ? true: false;
+            record_arry[i].value1 = i+2;
+            record_arry[i].value2 = i+3;
+            record_arry[i].value3 = i+4;
+            record_arry[i].value4 = i+5;
+            record_arry[i].value5 = i+6;
+            record_arry[i].value6 = i+7;
+            record_arry[i].value7 = i+8;
+            record_arry[i].value8 = i+9;
+            record_arry[i].value9 = i+10;
+            record_arry[i].value10 = i+11;
+            strcpy((char*)record_arry[i].value21,"hello ");
+        }
+
+        int a , b ;
+        diff_count diff;
+        diff.start();
+
+        int count = totle_send/record_num ;
+        int count_num = count;
+        while (count > 0)
+        { 
+            {
+                for(int k =0; k < record_num; k++)
+                {
+                    record_arry[k].id +=  record_num*(count_num-count);
+                   // fprintf(stderr,  "%lld  ", record_arry[k].id);
+                }
+            } 
+
+            rc = cli_insert_multy_with_filter(statement, record_arry, record_num, &oid);
+            if (rc != cli_ok) { 
+                fprintf(stderr, "cli_insert failed with code %d\n", rc);
+                return EXIT_FAILURE;
+            } 
+            count--; 
+        }
+        diff.add_snap();
+        diff.show_diff(a,b, true);
+
+        cli_commit(session);
+        printf(" IPS:  %8f      totle_insert_count:%lld     record_num:%d  \n", record_num* count_num*1.0 * 1000  /  a ,record_num* count_num , record_num );
+      //  test_cli_fastdb_remove_all(statement);
+    }  
+
+    fprintf(stderr, "\n\n------test finished------\n");  
+    rc = cli_free(statement);
+    if (rc != cli_ok) { 
+        fprintf(stderr, "cli_free failed with code %d\n", rc);    
+        return EXIT_FAILURE;
+    }
+
     if (table_created) { 
 	rc = cli_drop_table(session, "Record");
 	if (rc != cli_ok) { 
 	    fprintf(stderr, "cli_drop_table failed with code %d\n", rc);
 	    return EXIT_FAILURE;
-	    }
+	}
     }    
 
     if ((rc = cli_close(session)) != cli_ok) { 
         fprintf(stderr, "cli_close failed with code %d\n", rc);
         return EXIT_FAILURE;	
     }
- 
     printf("*** CLI test sucessfully passed!\n");
     return EXIT_SUCCESS;
 }

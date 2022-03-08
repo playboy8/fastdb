@@ -6,7 +6,7 @@
  *                          Last update: 13-Jan-2000 K.A. Knizhnik   * GARRET *
  *-------------------------------------------------------------------*--------*
  * Test for FastDB call level interface 
- * Spawn "subsql  clitest.sql" to start CLI server. 
+ * test cli_get . 
  *-------------------------------------------------------------------*--------*/
 
 #include <fastdb/cli.h>
@@ -17,8 +17,6 @@
 #include "../opt/public.h"
 #include <unistd.h>
 
-int session;
-
 #pragma pack (1)
 typedef struct KLine
 {
@@ -26,7 +24,7 @@ typedef struct KLine
     cli_int8_t  market_time;         //yyyymmddhhmmssmmm   
     cli_int8_t  update_time;         //yyyymmddhhmmssmmm   
     cli_real8_t open;
-    cli_real8_t high;        // value 作为保存值
+    cli_real8_t high;        
     cli_real8_t low;   
     cli_real8_t close; 
     cli_int8_t  volume;   
@@ -47,7 +45,6 @@ static cli_field_descriptor KLine_descriptor[] = {
     {cli_real8        ,           0, "turnover"      },
     {cli_array_of_int1,           0, "value1"        }
 };        
-
 
 bool cli_column2_bind(int statement, KLine* p)
 {
@@ -78,92 +75,90 @@ bool cli_column2_bind(int statement, KLine* p)
     return true;
 }
 
-void mock_data(KLine record_arry[] , int record_num, bool new_or_update, cli_int4_t* start_stockid, cli_int8_t*  curr_time)
+void show_data(KLine *p)
 {
-    static cli_int4_t start_stock = 600519;
-    static cli_int8_t start_time = 202206060930;
-    if(new_or_update) start_time += 1;
-    *curr_time = start_time;
-
-    memset(record_arry, 0, sizeof(record_arry));
-    for(int i=0 ; i < record_num; i++)
-    {
-       record_arry[i].stock_id= start_stock+i;
-
-       record_arry[i].market_time = start_time;
-       record_arry[i].update_time = start_time*1000+200;
-       
-       record_arry[i].open = 88.0;
-       record_arry[i].high =90.24;
-       record_arry[i].low = 86.66;
-       record_arry[i].close = 87.52;
-       record_arry[i].volume = 26000;
-       record_arry[i].turnover = 227552000;
-       strcpy((char*)record_arry[i].value1,"reserved");
-    }
-
-    *start_stockid = start_stock ;   
-
-    
+    fprintf(stderr, "recive record :  %8d, %12lld, %12lld, %8f, %8f, %8f , %8f , %lld, %8f \n", p->stock_id,p->market_time, p->update_time, p->open, p->high, p->low, p->close, p->volume, p->turnover);
 }
 
-int fetch_data(int statement,int mode=cli_view_only)
+cli_oid_t fetch_all_data(int statement,int session, KLine *p)
 {
-    int rc = cli_fetch(statement, mode);
-    if(rc>0)
-    {
-        int rc = cli_get_last(statement);
-        if(0 == rc)
-            return 1;
+    int rc = cli_fetch(statement, cli_view_only);
+    while(true )
+    {   
+        rc = cli_fetch(statement, cli_view_only);
+        if(rc > 0)
+        {
+            while( (rc = cli_get_multy(statement)) == cli_ok)
+            {           
+                show_data(p);
+                while ((rc = cli_parser_next(statement)) == cli_ok)                
+                    show_data(p);
+            }
+        }
+        else if( rc == -13 )
+        {
+            std::cout << " fetch data failed , rc=" << int(rc) << "     no data. \n" ;
+            cli_precommit(session);
+            sleep(1);
+            continue;
+        }
         else
-            return -1;
+        {
+            std::cout << " fetch data failed , rc=" << int(rc) << " \n" ;
+            sleep(1);
+            continue;
+        }
+
+        cli_precommit(session);
+        return  cli_get_oid(statement);
     }
+     return  cli_get_oid(statement);
+}
+
+int fetch_new_data(int statement, int session ,KLine *p, cli_oid_t oid , cli_int4_t* id, cli_int8_t* time)
+{
+    int count = 500;
+    int rc=0 ;
+    int old_rc=0;
+    {
+        while( count-- >0)   
+        {
+            rc = cli_fetch(statement, cli_view_only);   
+            if(rc > 0 && rc > old_rc)
+            {
+                old_rc = rc;
+                if( (rc = cli_get_last(statement)) == cli_ok )
+                {
+                     std::cout << "Found new record : "<<   std::endl; 
+                     show_data(p);
+                }   
+                else
+                     std::cout << "cli_get_last error,  rc:" << int(rc) <<   std::endl;                      
+            }
+            else
+            {
+              if( old_rc == rc)
+                 std::cout << "fetech data: server has no update, rc:" << int(rc)   <<  std::endl;
+              else if( rc < 0) std::cout << "seek error \n" << std::endl;
+            }
+            cli_precommit(session);
+            sleep(1);
+        }
+    }   
     return rc;
 }
 
-int  update_or_insert(int stat_update, int stat_insert, KLine* record_arry,  KLine* dst, cli_oid_t* oid)
-{
-    int rc;
-    if(fetch_data(stat_update,cli_for_update)>0) //cli_view_only
-    {
-        //*dst = *((KLine*)record_arry); 
-        cli_int8_t old_time = dst->update_time;
-        dst->update_time += 200;
-        rc = cli_update(stat_update);
-        cli_precommit(session);
-
-        if (rc != cli_ok) { 
-            fprintf(stderr, "cli_update failed with code %d\n", rc);
-            return EXIT_FAILURE;
-        }
-
-        fprintf(stderr, " found last record := %lld,  now update to: %lld, id:%d, market_time:%lld \n", old_time, dst->update_time, dst->stock_id,dst->market_time  );   
-    }
-    else
-    {
-        cli_precommit(session);
-        cli_insert_multy(stat_insert,record_arry, 1, oid);
-        if (rc != cli_ok) { 
-            fprintf(stderr, "cli_insert failed with code %d\n", rc);
-            return EXIT_FAILURE;
-        }
-        else
-            fprintf(stderr, " add new record, time: %lld, id:%d, market_time:%lld \n", record_arry->update_time, record_arry->stock_id,record_arry->market_time  );   
-         
-    }
-    return 0;
-}
 
 int main(int arg, char **argv)
 {
     char_t* databaseName = _T("testpar2");
-    int  statement, statement2, rc, len;
-    int table_created = 0;
+    int session, statement, statement2, rc ;
+
     cli_oid_t oid;
     KLine p;
     cli_int4_t start_stockid;
-    cli_int8_t curr_time;
-    char* serverURL;
+    cli_int8_t update_time; 
+    char* serverURL ;
 
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -174,7 +169,7 @@ int main(int arg, char **argv)
     {
         serverURL = "127.0.0.1:6300";
         std::cout << " Local mode , IP: " << serverURL << "\n";
-    }  
+    } 
 
     session = cli_open(serverURL, 10, 1);
     if (session == cli_bad_address) { 
@@ -186,17 +181,7 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-#if 0
-    rc = cli_create_table(session, "KLine", sizeof(KLine_descriptor)/sizeof(cli_field_descriptor), 
-			  KLine_descriptor);
-    if (rc == cli_ok) { 
-	table_created = 1;
-    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
-	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
-	return EXIT_FAILURE;
-    } 
-#endif
-    statement = cli_statement(session, "insert into KLine");
+    statement = cli_statement(session, "select * from KLine");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
@@ -208,42 +193,27 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-
-    statement2 = cli_statement(session, "select * from KLine where stock_id=%stock_id and market_time=%market_time");
-    if (statement2 < 0) { 
-        fprintf(stderr, "cli_statement failed with code %d\n", statement );
+    statement2 = cli_statement(session, "select * from KLine where stock_id = %stock_id and update_time > %update_time");
+    if (statement < 0) { 
+        fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
     }
+
     if(false == cli_column2_bind(statement2,&p))
     {
-        fprintf(stderr, " cli_column2 bind statement2   failed with code %d\n", rc);
+        fprintf(stderr, "cli_column2 2 failed with code %d\n", rc);
         return EXIT_FAILURE;
     }
 
     if ((rc = cli_parameter(statement2, "%stock_id", cli_int4, &start_stockid)) != cli_ok 
-        || (rc = cli_parameter(statement2, "%market_time", cli_int8, &curr_time)) != cli_ok)
+        || (rc = cli_parameter(statement2, "%update_time", cli_int8, &update_time)) != cli_ok)
     {
         fprintf(stderr, "cli_parameter statement2 failed with code %d\n", rc);
         return EXIT_FAILURE;
-    }    
+    }  
 
-    u_int16_t record_num = 2;
-    KLine record_arry[record_num];
-
-    for(int i = 0; i < 50; i++ )
-    {
-        mock_data(record_arry,record_num,true,&start_stockid,&curr_time);
-        update_or_insert(statement2, statement, &record_arry[0], &p, &oid);
-        
-
-        sleep(1);
-        mock_data(record_arry,record_num,false,&start_stockid,&curr_time);
-   
-        update_or_insert(statement2, statement, &record_arry[0], &p, &oid);
-        cli_commit(session);
-        sleep(1);
-
-    }
+    oid = fetch_all_data(statement, session, &p);
+    fetch_new_data(statement, session ,&p, oid, &start_stockid, &update_time);
 
     rc = cli_free(statement);
     if (rc != cli_ok) { 
@@ -251,22 +221,7 @@ int main(int arg, char **argv)
         
         return EXIT_FAILURE;
     }
-
-    rc = cli_free(statement2);
-    if (rc != cli_ok) { 
-        fprintf(stderr, "cli_free failed with code %d\n", rc);
-        
-        return EXIT_FAILURE;
-    }
-
-    if (table_created) { 
-	rc = cli_drop_table(session, "KLine");
-	if (rc != cli_ok) { 
-	    fprintf(stderr, "cli_drop_table failed with code %d\n", rc);
-	    return EXIT_FAILURE;
-	}
-    }    
-
+  
     if ((rc = cli_close(session)) != cli_ok) { 
         fprintf(stderr, "cli_close failed with code %d\n", rc);
         return EXIT_FAILURE;	
