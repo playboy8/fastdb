@@ -157,7 +157,6 @@
 ##  CLI 客户端
 ```
 
-
     1. CLI 接口的使用示例路径： /home/work/ms-fastdb/example2 
 
 
@@ -176,6 +175,8 @@
                             ├────── cliwrite2_filter //远程批量写入和更新
                             ├────── KLine_pro    //K线发布服务示例
                             ├────── KLine_recive //K线消费服务示例
+
+    对于CLI客户端的操作均包含在以上示例中，请参考示例的实现。
 ```
 
 

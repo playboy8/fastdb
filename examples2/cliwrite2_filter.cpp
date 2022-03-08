@@ -16,6 +16,7 @@
 #include <string.h>
 #include "../opt/public.h"
 
+
 #pragma pack (1)
 typedef struct Record
 {
@@ -45,30 +46,30 @@ typedef struct Record
 } Record;
 #pragma pack ()
 
-static cli_field_descriptor record_descriptor[] = {
-    {cli_int4, cli_indexed, "id"},
-    {cli_bool, 0, "value"   },
-    {cli_int1, 0, "value1"  },
-    {cli_int2, 0, "value2"  },
-    {cli_int4, 0, "value3"  },
-    {cli_int8, 0, "value4"  },
-    {cli_int4, 0, "value5"  },
-    {cli_int4, 0, "value6"  },
-    {cli_int4, 0, "value7"  },
-    {cli_int4, 0, "value8"  },
-    {cli_int4, 0, "value9"  },
-    {cli_int4, 0, "value10" },
-    {cli_int4, 0, "value11" },
-    {cli_int4, 0, "value12" },
-    {cli_int4, 0, "value13" },
-    {cli_int4, 0, "value14" },
-    {cli_int4, 0, "value15" },
-    {cli_int4, 0, "value16" },
-    {cli_int4, 0, "value17" },
-    {cli_int4, 0, "value18" },
-    {cli_int4, 0, "value19" },
-    {cli_int4, 0, "value20" },
-    {cli_array_of_int1,0,"value21"}
+static cli_field_descriptor2 record_descriptor[] = {
+    {cli_int4, cli_indexed, "id",1},
+    {cli_bool, 0, "value"   ,1  },
+    {cli_int1, 0, "value1"  ,1  },
+    {cli_int2, 0, "value2"  ,1  },
+    {cli_int4, 0, "value3"  ,1  },
+    {cli_int8, 0, "value4"  ,1  },
+    {cli_int4, 0, "value5"  ,1  },
+    {cli_int4, 0, "value6"  ,1  },
+    {cli_int4, 0, "value7"  ,1  },
+    {cli_int4, 0, "value8"  ,1  },
+    {cli_int4, 0, "value9"  ,1  },
+    {cli_int4, 0, "value10" ,1  },
+    {cli_int4, 0, "value11" ,1  },
+    {cli_int4, 0, "value12" ,1  },
+    {cli_int4, 0, "value13" ,1  },
+    {cli_int4, 0, "value14" ,1  },
+    {cli_int4, 0, "value15" ,1  },
+    {cli_int4, 0, "value16" ,1  },
+    {cli_int4, 0, "value17" ,1  },
+    {cli_int4, 0, "value18" ,1  },
+    {cli_int4, 0, "value19" ,1  },
+    {cli_int4, 0, "value20" ,1  },
+    {cli_array_of_int1,0,"value21", 10}
 };        
 
 
@@ -113,8 +114,46 @@ bool cli_column2_bind(int statement, Record* p)
     }
     return true;
 }
+#if 0
+bool cli_column_autobind(int statement, Record* p, cli_field_descriptor arr[])
+{
+    static std::unordered_map<std::string,int> len_map;
+    int arr_len  = sizeof(arr)/sizeof(cli_field_descriptor);
+    int rc[arr_len]= {0,};
+    char* p_dst = (char*)p;
+    for(int i = 0 ; i < arr_len; i++)
+    {
+        cli_field_descriptor* curr = arr+i;
+        int curr_size = 0;      
 
+        if( curr->type >= cli_array_of_oid && curr->type <= cli_array_of_string )
+        {
+            curr_size = sizeof_type[curr->type-cli_array_of_oid];
+            curr_size *= curr->len;
+            rc[i++] = cli_column2(statement, curr->name, curr->type, &curr->len, p_dst);
+        }
+        else
+        {
+            rc[i++] = cli_column2(statement, curr->name, curr->type, NULL, p_dst);
+            curr_size = sizeof_type[curr->type];
+        }
 
+        p_dst += curr_size;     
+    }
+
+    assert(p_dst == (p+1));
+
+    for (size_t i = 0; i < lens; i++)
+    {
+        if( cli_ok != rc[i] )
+        {
+        //    fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
+            return false;
+        }
+    }
+    return true;
+}
+#endif
 
 // 删除所有数据
 int test_cli_fastdb_remove_all(int db_handle)
@@ -218,14 +257,15 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor), 
-			  record_descriptor);
-    if (rc == cli_ok) { 
-	table_created = 1;
-    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
-	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
-	return EXIT_FAILURE;
-    } 
+//    rc = cli_create_table(session, "Record", sizeof(record_descriptor)/sizeof(cli_field_descriptor), 
+//			  record_descriptor);
+//    rc == cli_table_already_exists;
+//    if (rc == cli_ok) { 
+//	table_created = 1;
+//    } else if (rc != cli_table_already_exists && rc != cli_not_implemented) { 
+//	fprintf(stderr, "cli_create_table failed with code %d\n", rc);
+//	return EXIT_FAILURE;
+//    } 
 
     statement = cli_statement(session, "insert into Record");
     if (statement < 0) { 
@@ -233,7 +273,8 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-    if(false == cli_column2_bind(statement,&p))
+    
+    if( 0 != cli_column_autobind(statement,&p,record_descriptor,sizeof(record_descriptor)/sizeof(cli_field_descriptor2)))
     {
         fprintf(stderr, "cli_column2 2 failed with code %d\n", rc);
         return EXIT_FAILURE;

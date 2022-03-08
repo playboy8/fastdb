@@ -325,6 +325,20 @@ int FASTDB_DLL_ENTRY cli_column2(int         statement,
                                 int*        var_len, 
                                 void*       var_ptr);
 
+typedef struct cli_field_descriptor2 { 
+    enum cli_var_type type;
+    int               flags;
+    char const*       name;
+    int               len;
+    char const*       refTableName;
+    char const*       inverseRefFieldName;
+} cli_field_descriptor2;
+
+int FASTDB_DLL_ENTRY cli_column_autobind(int statement,
+                                          void* p, 
+                                          cli_field_descriptor2 arr[], 
+                                          int arr_len );
+
 
 typedef void* (CLI_CALLBACK_CC *cli_column_set)(int var_type, void* var_ptr, int len);
 typedef void* (CLI_CALLBACK_CC *cli_column_get)(int var_type, void* var_ptr, int* len);
@@ -659,6 +673,7 @@ typedef struct cli_field_descriptor {
     char const*       refTableName;
     char const*       inverseRefFieldName;
 } cli_field_descriptor;
+
 
 /*********************************************************************
  * cli_describe

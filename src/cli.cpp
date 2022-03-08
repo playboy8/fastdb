@@ -459,6 +459,42 @@ int cli_column2(int         statement,
     return cli_ok;
 }
 
+
+int cli_column_autobind(int statement, void* p, cli_field_descriptor2 arr[], int arr_len)
+{
+
+    int rc[arr_len]= {0,};
+    char* p_dst = (char*)p;
+    for(int i = 0 ; i < arr_len; i++)
+    {
+        cli_field_descriptor2* curr = arr+i;
+        int curr_size = 0;      
+
+        if( curr->type >= cli_array_of_oid && curr->type <= cli_array_of_string )
+        {
+            curr_size = sizeof_type[curr->type-cli_array_of_oid];
+            curr_size *= curr->len;
+            rc[i++] = cli_column2(statement, curr->name, curr->type, &curr->len, p_dst);
+        }
+        else
+        {
+            rc[i++] = cli_column2(statement, curr->name, curr->type, NULL, p_dst);
+            curr_size = sizeof_type[curr->type];
+        }
+
+        p_dst += curr_size;     
+    }
+
+    assert(p_dst == (p+1));
+
+    for (size_t i = 0; i < arr_len; i++)
+    {
+        if( cli_ok != rc[i] )
+            return -1;
+    }
+    return 0;
+}
+
 int cli_array_column(int            statement,
                      char const*    column_name,
                      int            var_type,
