@@ -487,6 +487,26 @@ int FASTDB_DLL_ENTRY cli_get_multy(int statement);
 int FASTDB_DLL_ENTRY cli_parser_next(int statement);
 
 /*********************************************************************
+ * cli_parser_first
+ *     Get first row of the multy selection.
+ * Parameters:
+ *     statement  - statememt descriptor returned by cli_statement
+ * Returns:
+ *     result code as described in cli_result_code enum
+ */
+int FASTDB_DLL_ENTRY cli_parser_first(int statement);
+
+/*********************************************************************
+ * cli_parser_last
+ *     Get next row of the multy selection.
+ * Parameters:
+ *     statement  - statememt descriptor returned by cli_statement
+ * Returns:
+ *     result code as described in cli_result_code enum
+ */
+int FASTDB_DLL_ENTRY cli_parser_last(int statement);
+
+/*********************************************************************
  * cli_get_last
  *     Get last row of the selection.
  * Parameters:

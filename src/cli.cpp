@@ -1544,18 +1544,12 @@ int cli_get_multy(int statement)
     return cli_get(statement, cli_cmd_get_multy);
 }
 
-int cli_parser_next(int statement)
+// only support multy operatiron.
+static int parser_data(int statement, statement_desc* s, int start_pos)
 {
     int result = cli_ok;
-    statement_desc* s = statements.get(statement);
-    if (s == NULL) { 
-        return cli_bad_descriptor;
-    }
-    if (!s->prepared) { 
-        return cli_not_fetched;
-    }
-    char* p = s->buf+ s->pos;
-    size_t remain = s->data_size - s->pos;
+    char* p = s->buf+ start_pos;
+    size_t remain = s->data_size - start_pos;
     if( remain <=0 ||  0 != remain%(s->rec_record_len)) 
     {
         result = cli_runtime_error;
@@ -1711,10 +1705,53 @@ int cli_parser_next(int statement)
             }
         }
     }
+    int oid_change = ((p - s->buf) - s->pos)/s->rec_record_len;
     s->pos = p - s->buf ;
     s->updated = false;
-    s->oid += 1;
+    s->oid += oid_change;
     return result;
+}
+
+int cli_parser_next(int statement)
+{
+    int result = cli_ok;
+    statement_desc* s = statements.get(statement);
+    if (s == NULL) { 
+        return cli_bad_descriptor;
+    }
+    if (!s->prepared) { 
+        return cli_not_fetched;
+    }
+    return parser_data(statement,s,s->pos);
+}
+
+int FASTDB_DLL_ENTRY cli_parser_first(int statement)
+{
+    int result = cli_ok;
+    statement_desc* s = statements.get(statement);
+    if (s == NULL) { 
+        return cli_bad_descriptor;
+    }
+    if (!s->prepared) { 
+        return cli_not_fetched;
+    }
+    return parser_data(statement,s,0);
+}
+
+int FASTDB_DLL_ENTRY cli_parser_last(int statement)
+{
+    int result = cli_ok;
+    statement_desc* s = statements.get(statement);
+    if (s == NULL) { 
+        return cli_bad_descriptor;
+    }
+    if (!s->prepared) { 
+        return cli_not_fetched;
+    }
+    if(s->rec_record_len > 0 && s->data_size >0 )
+        return parser_data(statement,s,((s->data_size/s->rec_record_len)-1)* s->rec_record_len );
+    else
+        return cli_runtime_error;
 }
 
 int cli_get_last(int statement)

@@ -79,17 +79,36 @@ typedef void* select_func(int) ;
     template < typename T >
     int cli_api::select(int auth, select_flag flag)
     {
-        select_func func[2] = {cli_get_first, cli_get_last,cli_get_next};
-        void* func(int)
+        select_func func[2] = {
+            cli_get_first, 
+            cli_get_last,
+            cli_get_next,
+            cli_get_multy,
+            cli_parser_first,
+            cli_parser_last,
+            cli_parser_next };
+
         int rc =0;
         int statement = statements.back();
 
         rc = cli_fetch(statement, auth);
-        
-        if(rc>0 && cli_ok == select_func[int(flag)](statement))
+        if(select_flag::toltol_num == flag) {
             return rc;
-        else
-            return -1;
-    }
+        }           
+        else{
 
+            int ret = select_func[int(flag)](statement);
+
+            if(multy_next == flag)
+            {
+                if(ret < 0)
+                ret = cli_get_multy(statement);
+            }
+
+            if(rc > 0 && cli_ok == ret )
+                return rc;
+            else
+                return -1
+        }
+    }
 }
