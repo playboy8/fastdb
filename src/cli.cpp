@@ -462,7 +462,6 @@ int cli_column2(int         statement,
 
 int cli_column_autobind(int statement, void* p, cli_field_descriptor2 arr[], int arr_len)
 {
-
     int rc[arr_len]= {0,};
     char* p_dst = (char*)p;
     for(int i = 0 ; i < arr_len; i++)
@@ -490,9 +489,9 @@ int cli_column_autobind(int statement, void* p, cli_field_descriptor2 arr[], int
     for (size_t i = 0; i < arr_len; i++)
     {
         if( cli_ok != rc[i] )
-            return -1;
+            return rc[i];
     }
-    return 0;
+    return cli_ok;
 }
 
 int cli_array_column(int            statement,
