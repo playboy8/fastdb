@@ -6,15 +6,15 @@ project (${name})
 set(fastdb_dir /opt/fastdb64 )
 
 
-file( GLOB  sources  ${CMAKE_SOURCE_DIR}   ../CLI++/*.hpp   )
+file( GLOB  sources  ${CMAKE_SOURCE_DIR} ./main.cpp    )
 
-# -D_DEBUG  -g -ggdb3   ../CLI++/*.h 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -D_DEBUG  -g -ggdb3    -O1 -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H    " ) 
+# -D_DEBUG  -g   
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -ggdb3  -O2 -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H " ) 
 
 include_directories(${fastdb_dir}/include  ../CLI++/ )
 
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
-add_executable(  ${name}  ${sources}   ${CMAKE_SOURCE_DIR}/main.cpp  )
+add_executable(  ${name}  ${sources} )
 
 target_link_libraries(${name}   PUBLIC
                                 ${fastdb_dir}/lib/libcli.so 

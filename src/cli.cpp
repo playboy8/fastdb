@@ -460,7 +460,7 @@ int cli_column2(int         statement,
 }
 
 
-int cli_column_autobind(int statement, void* p, cli_field_descriptor2 arr[], int arr_len)
+int cli_column_autobind(int statement, void* p, int record_len, cli_field_descriptor2 arr[], int arr_len)
 {
     int rc[arr_len]= {0,};
     char* p_dst = (char*)p;
@@ -468,23 +468,24 @@ int cli_column_autobind(int statement, void* p, cli_field_descriptor2 arr[], int
     {
         cli_field_descriptor2* curr = arr+i;
         int curr_size = 0;      
-
         if( curr->type >= cli_array_of_oid && curr->type <= cli_array_of_string )
         {
             curr_size = sizeof_type[curr->type-cli_array_of_oid];
             curr_size *= curr->len;
-            rc[i++] = cli_column2(statement, curr->name, curr->type, &curr->len, p_dst);
+            rc[i] = cli_column2(statement, curr->name, curr->type, &curr->len, p_dst);
         }
         else
         {
-            rc[i++] = cli_column2(statement, curr->name, curr->type, NULL, p_dst);
+            rc[i] = cli_column2(statement, curr->name, curr->type, NULL, p_dst);
             curr_size = sizeof_type[curr->type];
         }
-
-        p_dst += curr_size;     
+        p_dst += curr_size;  
     }
 
-    assert(p_dst == (p+1));
+    if(p_dst != ((char*)p + record_len))
+    {
+        return cli_bad_descriptor;
+    }
 
     for (size_t i = 0; i < arr_len; i++)
     {
@@ -603,7 +604,7 @@ int cli_fetch(int statement, int for_update)
     if (!stmt->prepared) { 
         *p++ = stmt->n_params;
         *p++ = stmt->n_columns;
-        p = pack2(p, stmt->stmt_len + stmt->n_params);
+        p = pack2(p, stmt->stmt_len + stmt->n_params);  
         pb = stmt->params;
         char* end = p + stmt->stmt_len + stmt->n_params;
         char* src = stmt->stmt;
@@ -670,7 +671,7 @@ int cli_fetch(int statement, int for_update)
     }
 
 
-    //memory_dump(buf, msg_size);
+//    memory_dump(buf, msg_size);
 
     assert(msg_size == (size_t)(p - buf.base()));
     if (!stmt->session->sock->write(buf, msg_size)) { 
@@ -1522,7 +1523,6 @@ static int cli_get(int statement, int cmd, cli_oid_t value = 0)
     size_t remain = s->data_size - s->pos;
     if( 0 != ((remain)% s->rec_record_len))
     {
-         printf(" parser data failed!  remain size= %d, s->rec_record_le=%d .\n", remain, s->rec_record_len);
          result = cli_runtime_error;
     }
     else

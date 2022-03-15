@@ -4,19 +4,6 @@ set(name  fast_demo)
 project (${name})
 
 
-set(vendor_dir /opt/fastdb64 )
-set(boost_inc_dir ${vendor_dir}/boost/boost_1_77_0/boost_out/lib )
-set(boost_lib_dir ${vendor_dir}/boost/boost_1_77_0/boost_out/include )
-set(boost_libs   )
-
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set (lib "hiredis-d.so")
-else()
-        set (lib "hiredis.so")
-endif()
-
-
 file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
 # -D_DEBUG  -g -ggdb3 

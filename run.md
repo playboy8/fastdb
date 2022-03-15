@@ -103,7 +103,7 @@
 
 ```
 
-## 内存数据库服务管理和使用
+## subsql其它使用
 ```
  在subsql会话界面输入指令 show 查看当前服务上的 表信息，如下：
 
@@ -152,9 +152,29 @@
 
     此处可以输入subsql语句对对应的数据库进行操作， 对数据库备份 以及恢复 等其它管理操作。
 
+   注意： 不要在 subsql 绘画中执行全量查询输出的语句，逐条打印数据话费时间较长且会阻塞服务。
+
 ```
 
-##  CLI 客户端
+
+## CLI++ 接口
+
+```
+    1. CLI++ 接口的使用示例路径： /home/work/ms-fastdb/example3
+
+    2. 编译CLI测试程序
+    cd /home/work/ms-fastdb/example3
+    sh build.sh
+    
+    3. 示例程序说明
+    fastdb cli++ 接口测试程序  ├—————— fastdb_cli++  // CLI++ 接口的 记录插入,查询，修改，删除。 
+
+
+    对于CLI++客户端的操作均包含在以上示例中，可参考示例的实现。
+
+```
+
+##  CLI 接口
 ```
 
     1. CLI 接口的使用示例路径： /home/work/ms-fastdb/example2 
@@ -176,8 +196,15 @@
                             ├────── KLine_pro    //K线发布服务示例
                             ├────── KLine_recive //K线消费服务示例
 
-    对于CLI客户端的操作均包含在以上示例中，请参考示例的实现。
+    /home/work/ms-fastdb/example2/readme.txt 中列举了部分情景下接口的性能表现。
+
+    对于CLI客户端的操作均包含在以上示例中，可参考示例的实现。
+
+    
+    
 ```
+
+
 
 
 

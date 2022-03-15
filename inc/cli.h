@@ -336,6 +336,7 @@ typedef struct cli_field_descriptor2 {
 
 int FASTDB_DLL_ENTRY cli_column_autobind(int statement,
                                           void* p, 
+                                          int record_len,
                                           cli_field_descriptor2 arr[], 
                                           int arr_len );
 

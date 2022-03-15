@@ -1,4 +1,5 @@
 #include "../CLI++/cli++.hpp"
+#include <thread>
 
 #pragma pack (1)
 typedef struct Record
@@ -55,25 +56,34 @@ static cli_field_descriptor2 record_descriptor[] = {
     {cli_array_of_int1,0,"value21", 10}
 };        
 
-static cli_plusplus::ParameterBinding paraments[2];
+static cli_plusplus::ParameterBinding paraments[2]= {
+    { {.i4=0}, .type= cli_int4, .name="%id" },
+    { {.i1=2}, .type= cli_int1, .name="%value1" }
+};
 
 
 
 int main()
 {
+    std::vector<int> temp;
+    
     int rc = cli_ok;
     bool empty = false;
     cli_plusplus::cli_api<Record>  dbhandle("127.0.0.1:6100", "testpar"); 
-    rc = dbhandle.opendb(3, 1);
-    if(cli_bad_address == rc || rc < 0 )
+    rc = dbhandle.opendb(10, 1);
+    if(cli_bad_address == rc || rc < 0)
     {
         std::cout << "打开数据库失败 ！  错误码：" << rc << std::endl;
+        return -1;
     }
 
-    if(cli_ok != (rc = dbhandle.create_statement(" select * from Record;", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
+    if(cli_ok != (rc = dbhandle.create_statement(" select * from Record", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
     {
         std::cout << "创建sql 查询语句失败 ！  错误码：" << rc << std::endl;
+        return -1;
     }
+
+//    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
     rc = dbhandle.select(cli_view_only, cli_plusplus::select_flag::fetch);
     if(rc < 0 )
@@ -120,13 +130,56 @@ int main()
             std::cout << "\n value20\t" <<  p.value20; 
             std::cout << "\n value21\t" <<  (char*)(p.value21);
             std::cout << "\n";
+
+
+
+            {
+                if(cli_ok != (rc = dbhandle.create_statement(" select * from Record where id=%id and value1=%value1", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), paraments,sizeof(paraments)/sizeof(paraments[0]))))
+                {
+                    std::cout << "创建sql 条件查询语句失败 ！  错误码：" << rc << std::endl;
+                    return -1;
+                }
+
+                paraments[0].name = "%id";
+                paraments[0].u.i4 = 0;
+                paraments[1].name = "%value1";
+                paraments[1].u.i1 = 2;
+                rc = dbhandle.select(cli_for_update, cli_plusplus::select_flag::fetch);
+                if(rc < 0 )
+                {
+                    std::cout << "条件查询数据失败  错误码：" << rc << std::endl;
+                }
+                else
+                {
+                    empty = (rc == 0);
+                    std::cout << "条件查询，查到数据条数 ：" << rc << std::endl;
+                }
+                rc = dbhandle.select(cli_for_update, cli_plusplus::select_flag::first);
+                if(cli_ok != rc )
+                {
+                    std::cout << "获取第一条数据失败  错误码：" << rc << std::endl;
+                }
+                else
+                {
+                    Record& data = dbhandle.get_record();
+                    data.id += 1;
+                    data.value1 += 1;
+                    rc = dbhandle.update();
+                    rc = dbhandle.precommit();
+                    std::cout << "更新条件查询的第一条数据结束  返回值：" << rc << std::endl;
+                }
+            }
+
+            rc = dbhandle.remove("Record");
+            std::cout << "删除数据语句执行完成 ！  返回值：" << rc <<  std::endl;
         }
     }
     else
     {
-        if(cli_ok != (rc = dbhandle.create_statement(" insert to Record;", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
+        if(cli_ok != (rc = dbhandle.create_statement(" insert into Record ", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
         {
             std::cout << "创建sql 插入语句失败 ！  错误码：" << rc <<  std::endl;
+            return -1;
         }
 
         int record_num = 3;
@@ -149,10 +202,10 @@ int main()
             strcpy((char*)record_arry[i].value21,"hello ");
         }
 
-        dbhandle.insert_update(record_arry,record_num);
+        rc  = dbhandle.insert_update(record_arry,record_num);
+
+         std::cout << "插入语句执行完成 ！  返回值：" << rc <<  std::endl;
     }
 
     
-
-
 }

@@ -274,7 +274,7 @@ int main(int arg, char **argv)
     }
 
     
-    if( 0 != cli_column_autobind(statement,&p,record_descriptor,sizeof(record_descriptor)/sizeof(cli_field_descriptor2)))
+    if( 0 != cli_column_autobind(statement,&p, sizeof(p), record_descriptor, sizeof(record_descriptor)/sizeof(cli_field_descriptor2)))
     {
         fprintf(stderr, "cli_column2 2 failed with code %d\n", rc);
         return EXIT_FAILURE;
