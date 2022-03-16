@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 
 set(name  fast_demo)
 project (${name})
-
+set(vendor_dir /opt/fastdb64 )
 
 file( GLOB  sources  ${CMAKE_SOURCE_DIR}     ../opt/*     )
 
