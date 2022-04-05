@@ -41,24 +41,7 @@ namespace cli_plusplus {
      * 示例： ParameterBinding ss[2] = { 
      * {{.i1=5}, .type = cli_int2, .name = "%salary"},
      * {{.i1=5}, .type = cli_int4, .name = "%salary2"}  };
-     */
-
-    struct ParameterBinding { 
-        union { 
-            cli_int1_t       i1;
-            cli_int2_t       i2;
-            cli_int4_t       i4;
-            cli_int8_t       i8;
-            cli_real4_t      r4;
-            cli_real8_t      r8;
-            cli_oid_t       oid;
-            bool       b;
-            char*      str;
-            cli_rectangle_t  rect;
-        } u;
-        int type;
-        char const*    name;
-    };               
+     */       
 
     template < typename T >
     class cli_api
@@ -91,12 +74,26 @@ namespace cli_plusplus {
      * fileSizeLimit： 文件大小限制（0 - 无限制）
      * 
      */    
-    cli_api(std::string url, std::string database_name, std::string file_name="", size_t initDatabaseSize=100*1024*1024UL, size_t extensionQuantum=100*1024*1024UL, size_t initIndexSize=512*1024UL, size_t fileSizeLimit=0UL);
+    cli_api(std::string url="", std::string database_name="", std::string file_name="", size_t initDatabaseSize=100*1024*1024UL, size_t extensionQuantum=100*1024*1024UL, size_t initIndexSize=512*1024UL, size_t fileSizeLimit=0UL);
 
 
     /*********************************************************************
      */
     ~cli_api();
+
+
+    /*********************************************************************
+     *  初始化函数， 功能同构造函数，在构造时未传入参数时需要调用该函数初始化
+     * url:  远程数据地址和端口信息 （"127.0.0.1:6100"）
+     * database_name:   数据库名称
+     * initDatabaseSize： 指定初始索引大小
+     * extensionQuantum： 内存分配位图的扩展量
+     * initIndexSize： 对象索引的初始大小
+     * fileSizeLimit： 文件大小限制（0 - 无限制）
+     * 
+     */  
+
+    void cli_api_init(std::string url, std::string database_name, std::string file_name="", size_t initDatabaseSize=100*1024*1024UL, size_t extensionQuantum=100*1024*1024UL, size_t initIndexSize=512*1024UL, size_t fileSizeLimit=0UL);
 
 
     /*********************************************************************
@@ -248,6 +245,20 @@ namespace cli_plusplus {
     }
 
     template < typename T >
+    void cli_api<T>::cli_api_init(std::string url, std::string database_name, std::string file_name, size_t initDatabaseSize, size_t extensionQuantum, size_t initIndexSize,size_t fileSizeLimit)
+    {
+        serverURL =url;
+        dbname = database_name;
+        filename = file_name;
+        init_db_size = initDatabaseSize;
+        ext_quantum = extensionQuantum;
+        init_ind_size = initIndexSize;
+        filesize_limit = fileSizeLimit;
+        active_stat = -1;
+        session = -1;
+    }
+
+    template < typename T >
     cli_api<T>::~cli_api()
     {
         closedb();
@@ -319,10 +330,7 @@ namespace cli_plusplus {
                 return rc;
             }
 
-
-
             active_stat = statement;
-
             if(0 == field_desc.size())
             {
                 for(int i = 0 ; i < field_num; i++)
@@ -461,6 +469,7 @@ namespace cli_plusplus {
             }
             return rc;
         }
+        return 0;
     }
 
     template < typename T >

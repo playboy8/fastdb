@@ -334,6 +334,24 @@ typedef struct cli_field_descriptor2 {
     char const*       inverseRefFieldName;
 } cli_field_descriptor2;
 
+
+typedef struct ParameterBinding { 
+    union { 
+        cli_int1_t       i1;
+        cli_int2_t       i2;
+        cli_int4_t       i4;
+        cli_int8_t       i8;
+        cli_real4_t      r4;
+        cli_real8_t      r8;
+        cli_oid_t       oid;
+        int       b;
+        char*      str;
+        cli_rectangle_t  rect;
+    } u;
+    int type;
+    char const*    name;
+} ParameterBinding;  
+
 int FASTDB_DLL_ENTRY cli_column_autobind(int statement,
                                           void* p, 
                                           int record_len,
