@@ -18,14 +18,25 @@ int cli_python::open(int retry, int timeout)
     return cliapi.opendb(retry,timeout);
 }
 
-record_type cli_python::select_record_type(record_type type)
-{
+int cli_python::create_statement(record_type type, stat_func func, py::str sql)
+{  
     rec_type = type;
-    return rec_type;
+    if(func == stat_for_insert || func == stat_for_select_all )
+    {
+        return cliapi.create_statement(sql,  (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], nullptr, 0); 
+    }
+    else if(func == stat_for_insert || func == stat_for_select_all )
+    {
+        return cliapi.create_statement(sql, (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], (ParameterBinding*)par_desc_data[int(type)] , par_desc_data_size[int(type)] );
+    }
+    else 
+    {
+        return -1;
+    }
 }
 
-
-int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2, py::array::c_style | py::array::forcecast> field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> parament_field_descs)
+//, py::array::c_style | py::array::forcecast
+int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2> field_descs, py::array_t<ParameterBinding_py> parament_field_descs)
 {
     std::vector<ParameterBinding>  para;
     py::buffer_info buf0 = field_descs.request();
@@ -110,12 +121,24 @@ cli_python::~cli_python()
 
 PYBIND11_MODULE(cli_py, m) {
 
+    //  depends on numpy:
+    try { py::module::import("numpy"); }
+    catch (...) { return; }
+
 // define enum record_type
 py::enum_<record_type>(m, "record_type")
     .value("snapshot_rec", record_type::snapshot_rec )
     .value("kline_rec", record_type::kline_rec)
     .export_values();
-    
+
+// define enum record_type
+py::enum_<stat_func>(m, "stat_func")
+    .value("stat_for_insert", stat_func::stat_for_insert )
+    .value("stat_for_select_all", stat_func::stat_for_select_all)
+    .value("stat_for_select_spec", stat_func::stat_for_select_spec )
+    .value("stat_for_update", stat_func::stat_for_update)
+    .export_values();
+
 // define enum cli_type_flag 
 py::enum_<cli_var_type>(m, "cli_var_type")
     .value("cli_oid", cli_var_type::cli_oid )
@@ -151,24 +174,19 @@ py::enum_<cli_var_type>(m, "cli_var_type")
     .export_values();
 
 
-    //  depends on numpy:
-    try { py::module::import("numpy"); }
-    catch (...) { return; }
-
-
 // define record struct
 PYBIND11_NUMPY_DTYPE(snapshot, id, value, value1);
 PYBIND11_NUMPY_DTYPE(kline, stock_id, market_time, update_time, open, high, low, close, volume, turnover );
 //
 //// define field describe struct
-PYBIND11_NUMPY_DTYPE(cli_field_descriptor2, type, flags, name, len, refTableName, inverseRefFieldName );
+//PYBIND11_NUMPY_DTYPE(cli_field_descriptor2, type, flags, name, len, refTableName, inverseRefFieldName );
 
 //// define parament struct 
 PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
 py::class_<ParameterBinding_py>(m, "ParameterBinding_py")
-.def_readwrite("u", &ParameterBinding_py::u)
-.def_readwrite("type", &ParameterBinding_py::type)
-.def_readwrite("name", &ParameterBinding_py::name);
+    .def_readwrite("u", &ParameterBinding_py::u)
+    .def_readwrite("type", &ParameterBinding_py::type)
+    .def_readwrite("name", &ParameterBinding_py::name);
 
 
 py::class_<record_struct>(m, "record_struct")
@@ -181,8 +199,7 @@ py::class_<cli_python>(m, "cli_python")
     .def(py::init<>())
     .def("cli_python_init", &cli_python::cli_python_init)
     .def("open", &cli_python::open)
-    .def("select_record_type", &cli_python::select_record_type)
-    .def("create_statement", &cli_python::create_statement)
+    .def("create_statement", static_cast<int (cli_python::*)(record_type, stat_func, py::str)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
 //    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
     .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot>)>(&cli_python::insert), "insert snapshot record to db" )

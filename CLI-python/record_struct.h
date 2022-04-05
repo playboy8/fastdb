@@ -64,6 +64,13 @@ enum record_type
     kline_rec
 };
 
+enum stat_func {
+    stat_for_insert = 0,
+    stat_for_select_all,
+    stat_for_select_spec,
+    stat_for_update
+};
+
 
 struct ParameterBinding_py { 
     char const* u;
