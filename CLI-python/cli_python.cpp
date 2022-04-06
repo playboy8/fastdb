@@ -36,7 +36,7 @@ int cli_python::create_statement(record_type type, stat_func func, py::str sql)
 }
 
 //, py::array::c_style | py::array::forcecast
-int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py> field_descs, py::array_t<ParameterBinding_py> parament_field_descs)
+int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> parament_field_descs)
 {
     std::vector<cli_field_descriptor2>  filed;
     std::vector<ParameterBinding>  para;
@@ -78,7 +78,7 @@ int cli_python::precommit()
     return cliapi.precommit();
 }
  
-int cli_python::insert(py::array_t<snapshot> record)
+int cli_python::insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> record)
 {
     py::buffer_info buf1 = record.request();
     
@@ -89,7 +89,7 @@ int cli_python::insert(py::array_t<snapshot> record)
     else return -1;  
 }
 
-int cli_python::insert(py::array_t<kline> record)
+int cli_python::insert(py::array_t<kline, py::array::c_style | py::array::forcecast> record)
 {
     py::buffer_info buf1 = record.request();
     if( buf1.size == 1)
@@ -199,15 +199,15 @@ py::class_<record_struct>(m, "record_struct")
     .def_readwrite("kline", &record_struct::kline_m);
 
 // define export class 
-py::class_<cli_python>(m, "cli_python")
+py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::forcecast
     .def(py::init<>())
     .def("cli_python_init", &cli_python::cli_python_init)
     .def("open", &cli_python::open)
     .def("create_statement", static_cast<int (cli_python::*)(record_type, stat_func, py::str)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
 //    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
-    .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot>)>(&cli_python::insert), "insert snapshot record to db" )
-    .def("insert",  static_cast<int (cli_python::*)(py::array_t<kline>)>(&cli_python::insert), "insert kline record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot, py::array::c_style | py::array::forcecast>)>(&cli_python::insert), "insert snapshot record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(py::array_t<kline, py::array::c_style | py::array::forcecast>)>(&cli_python::insert), "insert kline record to db" )
     .def("insert_update", &cli_python::insert_update)
     .def("remove", &cli_python::remove)
     .def("select", &cli_python::select)
