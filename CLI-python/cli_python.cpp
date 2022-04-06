@@ -36,18 +36,21 @@ int cli_python::create_statement(record_type type, stat_func func, py::str sql)
 }
 
 //, py::array::c_style | py::array::forcecast
-int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2> field_descs, py::array_t<ParameterBinding_py> parament_field_descs)
+int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py> field_descs, py::array_t<ParameterBinding_py> parament_field_descs)
 {
+    std::vector<cli_field_descriptor2>  filed;
     std::vector<ParameterBinding>  para;
     py::buffer_info buf0 = field_descs.request();
     py::buffer_info buf1 = parament_field_descs.request();
+    cli_field_descriptor2_py* pfield =  (cli_field_descriptor2_py*)(buf0.ptr);
     ParameterBinding_py* ppar =  (ParameterBinding_py*)(buf1.ptr);
-    cli_field_descriptor2* pfield =  (cli_field_descriptor2*)(buf0.ptr);
-    for(int i =0; i< buf1.size; i++)
-    {
+
+    for(int i = 0; i < buf0.size; i++)
+        pfield[i].convert_parament(filed[i]);
+    for(int i = 0; i < buf1.size; i++)
         ppar[i].convert_parament(para[i]);
-    }
-    return cliapi.create_statement(sql, pfield, buf0.size , para.data(), para.size());   
+
+    return cliapi.create_statement(sql, filed.data(), filed.size() , para.data(), para.size());   
 }
 
 int cli_python::select(int auth, select_flag flag)
@@ -179,14 +182,15 @@ PYBIND11_NUMPY_DTYPE(snapshot, id, value, value1);
 PYBIND11_NUMPY_DTYPE(kline, stock_id, market_time, update_time, open, high, low, close, volume, turnover );
 //
 //// define field describe struct
-//PYBIND11_NUMPY_DTYPE(cli_field_descriptor2, type, flags, name, len, refTableName, inverseRefFieldName );
+PYBIND11_NUMPY_DTYPE(cli_field_descriptor2_py, type, flags, name, len, refTableName, inverseRefFieldName );
 
 //// define parament struct 
 PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
-py::class_<ParameterBinding_py>(m, "ParameterBinding_py")
-    .def_readwrite("u", &ParameterBinding_py::u)
-    .def_readwrite("type", &ParameterBinding_py::type)
-    .def_readwrite("name", &ParameterBinding_py::name);
+//py::class_<ParameterBinding_py>(m, "ParameterBinding_py")
+//    .def(py::init<>())
+//    .def_readwrite("u", &ParameterBinding_py::u)
+//    .def_readwrite("type", &ParameterBinding_py::type)
+//    .def_readwrite("name", &ParameterBinding_py::name);
 
 
 py::class_<record_struct>(m, "record_struct")

@@ -72,13 +72,34 @@ enum stat_func {
 };
 
 
+typedef struct cli_field_descriptor2_py { 
+    enum cli_var_type type;
+    int               flags;
+    char        name[64];
+    int               len;
+    char        refTableName[64];
+    char        inverseRefFieldName[64];
+
+    bool convert_parament(cli_field_descriptor2 &field)
+    {
+        field.type = type;
+        field.flags = flags;
+        field.name = name;
+        field.len = len;
+        field.refTableName = refTableName;
+        field.inverseRefFieldName = inverseRefFieldName;
+    }
+    
+} cli_field_descriptor2_py;
+
+
 struct ParameterBinding_py { 
-    char const* u;
+    char u[128];
     int type;
-    char const* name;
+    char name[128];
 
     bool convert_parament(ParameterBinding &para)
-    {
+    { // u 的值必须 按照 python 方式转化成str， 在c++中再还原成原类型
         py::object obj = py::str(u);
 
         bool ret = true;
@@ -114,7 +135,8 @@ struct ParameterBinding_py {
             ret = false;
             break;
         }
-
+        para.type = type;
+        para.name = name;
         return ret;
     }
 };   
