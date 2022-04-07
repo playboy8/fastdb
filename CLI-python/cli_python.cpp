@@ -207,7 +207,7 @@ py::class_<kline>(m, "kline")
     .def_readwrite("turnover", &kline::turnover);
  //   .def_readwrite("value1", &kline::value1); // not support char[]
 
-py::class_<snapshot>(m, "kline")
+py::class_<snapshot>(m, "snapshot")
     .def(py::init<>())
     .def_readwrite("cli_int4_t sym", &snapshot::sym )
     .def_readwrite("szWindCode", &snapshot::szWindCode )
