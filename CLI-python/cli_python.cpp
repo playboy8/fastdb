@@ -20,14 +20,15 @@ int cli_python::open(int retry, int timeout)
 
 int cli_python::create_statement(record_type type, stat_func func, py::str sql)
 {  
+
     rec_type = type;
     if(func == stat_for_insert || func == stat_for_select_all )
     {
-        return cliapi.create_statement(sql,  (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], nullptr, 0); 
+        return cliapi.create_statement(sql, record_size[int(rec_type)], (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], nullptr, 0); 
     }
     else if(func == stat_for_insert || func == stat_for_select_all )
     {
-        return cliapi.create_statement(sql, (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], (ParameterBinding*)par_desc_data[int(type)] , par_desc_data_size[int(type)] );
+        return cliapi.create_statement(sql, record_size[int(type)], (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], (ParameterBinding*)par_desc_data[int(type)] , par_desc_data_size[int(type)] );
     }
     else 
     {
@@ -50,7 +51,7 @@ int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_
     for(int i = 0; i < buf1.size; i++)
         ppar[i].convert_parament(para[i]);
 
-    return cliapi.create_statement(sql, filed.data(), filed.size() , para.data(), para.size());   
+    return cliapi.create_statement(sql,record_size[int(rec_type)], filed.data(), filed.size() , para.data(), para.size());   
 }
 
 int cli_python::select(int auth, select_flag flag)
@@ -142,6 +143,21 @@ py::enum_<stat_func>(m, "stat_func")
     .value("stat_for_update", stat_func::stat_for_update)
     .export_values();
 
+// define enum select_flag 
+
+
+py::enum_<select_flag>(m, "select_flag")                                        
+    .value("fetch", select_flag::fetch )                        //每次查询数据时最先查询记录条数                
+    .value("first", select_flag::first)                         //获取第一条记录            
+    .value("last", select_flag::last )                          //获取最后一条记录            
+    .value("next", select_flag::next)                           //获取下一条记录            
+    .value("multy_first", select_flag::multy_first )            //批量获取到的数据中第一条记录                            
+    .value("multy_last", select_flag::multy_last)               //本次批量获取到的数据中最后一条记录                        
+    .value("multy_next", select_flag::multy_next )              //批量获取到的数据中下一条记录                        
+    .value("select_flag_max", select_flag::select_flag_max)     //                                 
+    .export_values();   
+
+
 // define enum cli_type_flag 
 py::enum_<cli_var_type>(m, "cli_var_type")
     .value("cli_oid", cli_var_type::cli_oid )
@@ -177,10 +193,91 @@ py::enum_<cli_var_type>(m, "cli_var_type")
     .export_values();
 
 
+
+py::class_<kline>(m, "kline")
+    .def(py::init<>())
+    .def_readwrite("stock_id", &kline::stock_id)
+    .def_readwrite("market_time", &kline::market_time)
+    .def_readwrite("update_time", &kline::update_time)
+    .def_readwrite("open", &kline::open)
+    .def_readwrite("high", &kline::high)
+    .def_readwrite("low", &kline::low)
+    .def_readwrite("close", &kline::close)
+    .def_readwrite("volume", &kline::volume)
+    .def_readwrite("turnover", &kline::turnover);
+ //   .def_readwrite("value1", &kline::value1); // not support char[]
+
+py::class_<snapshot>(m, "kline")
+    .def(py::init<>())
+    .def_readwrite("cli_int4_t sym", &snapshot::sym )
+    .def_readwrite("szWindCode", &snapshot::szWindCode )
+    .def_readwrite("nActionDay", &snapshot::nActionDay )
+    .def_readwrite("nTime", &snapshot::nTime )
+    .def_readwrite("nStatus", &snapshot::nStatus )
+    .def_readwrite("nPreClose", &snapshot::nPreClose )
+    .def_readwrite("nOpen", &snapshot::nOpen )
+    .def_readwrite("nHigh", &snapshot::nHigh )
+    .def_readwrite("nLow", &snapshot::nLow )
+    .def_readwrite("nMatch", &snapshot::nMatch )
+    .def_readwrite("nAskPrice1", &snapshot::nAskPrice1 )
+    .def_readwrite("nAskPrice2", &snapshot::nAskPrice2 )
+    .def_readwrite("nAskPrice3", &snapshot::nAskPrice3 )
+    .def_readwrite("nAskPrice4", &snapshot::nAskPrice4 )
+    .def_readwrite("nAskPrice5", &snapshot::nAskPrice5 )
+    .def_readwrite("nAskPrice6", &snapshot::nAskPrice6 )
+    .def_readwrite("nAskPrice7", &snapshot::nAskPrice7 )
+    .def_readwrite("nAskPrice8", &snapshot::nAskPrice8 )
+    .def_readwrite("nAskPrice9", &snapshot::nAskPrice9 )
+    .def_readwrite("nAskPrice10", &snapshot::nAskPrice10 )
+    .def_readwrite("nAskVol1", &snapshot::nAskVol1 )
+    .def_readwrite("nAskVol2", &snapshot::nAskVol2 )
+    .def_readwrite("nAskVol3", &snapshot::nAskVol3 )
+    .def_readwrite("nAskVol4", &snapshot::nAskVol4 )
+    .def_readwrite("nAskVol5", &snapshot::nAskVol5 )
+    .def_readwrite("nAskVol6", &snapshot::nAskVol6 )
+    .def_readwrite("nAskVol7", &snapshot::nAskVol7 )
+    .def_readwrite("nAskVol8", &snapshot::nAskVol8 )
+    .def_readwrite("nAskVol9", &snapshot::nAskVol9 )
+    .def_readwrite("nAskVol10", &snapshot::nAskVol10 )
+    .def_readwrite("nBidPrice1", &snapshot::nBidPrice1 )
+    .def_readwrite("nBidPrice2", &snapshot::nBidPrice2 )
+    .def_readwrite("nBidPrice3", &snapshot::nBidPrice3 )
+    .def_readwrite("nBidPrice4", &snapshot::nBidPrice4 )
+    .def_readwrite("nBidPrice5", &snapshot::nBidPrice5 )
+    .def_readwrite("nBidPrice6", &snapshot::nBidPrice6 )
+    .def_readwrite("nBidPrice7", &snapshot::nBidPrice7 )
+    .def_readwrite("nBidPrice8", &snapshot::nBidPrice8 )
+    .def_readwrite("nBidPrice9", &snapshot::nBidPrice9 )
+    .def_readwrite("nBidPrice10", &snapshot::nBidPrice10 )
+    .def_readwrite("nBidVol1", &snapshot::nBidVol1 )
+    .def_readwrite("nBidVol2", &snapshot::nBidVol2 )
+    .def_readwrite("nBidVol3", &snapshot::nBidVol3 )
+    .def_readwrite("nBidVol4", &snapshot::nBidVol4 )
+    .def_readwrite("nBidVol5", &snapshot::nBidVol5 )
+    .def_readwrite("nBidVol6", &snapshot::nBidVol6 )
+    .def_readwrite("nBidVol7", &snapshot::nBidVol7 )
+    .def_readwrite("nBidVol8", &snapshot::nBidVol8 )
+    .def_readwrite("nBidVol9", &snapshot::nBidVol9 )
+    .def_readwrite("nBidVol10", &snapshot::nBidVol10 )
+    .def_readwrite("nNumTrades", &snapshot::nNumTrades )
+    .def_readwrite("iVolume", &snapshot::iVolume )
+    .def_readwrite("iTurnover", &snapshot::iTurnover )
+    .def_readwrite("nTotalBidVol", &snapshot::nTotalBidVol )
+    .def_readwrite("nTotalAskVol", &snapshot::nTotalAskVol )
+    .def_readwrite("nWeightedAvgBidPrice", &snapshot::nWeightedAvgBidPrice )
+    .def_readwrite("nWeightedAvgAskPrice", &snapshot::nWeightedAvgAskPrice )
+    .def_readwrite("nIOPV", &snapshot::nIOPV )
+    .def_readwrite("nYieldToMaturity", &snapshot::nYieldToMaturity )
+    .def_readwrite("nHighLimited", &snapshot::nHighLimited )
+    .def_readwrite("nLowLimited", &snapshot::nLowLimited )
+    .def_readwrite("nSyl1", &snapshot::nSyl1 )
+    .def_readwrite("nSyl2", &snapshot::nSyl2 )
+    .def_readwrite("nSD2", &snapshot::nSD2 );
+
 // define record struct
-PYBIND11_NUMPY_DTYPE(snapshot, id, value, value1);
+PYBIND11_NUMPY_DTYPE(snapshot, sym,szWindCode,nActionDay,nTime,nStatus,nPreClose,nOpen,nHigh,nLow,nMatch,nAskPrice1,nAskPrice2,nAskPrice3,nAskPrice4,nAskPrice5,nAskPrice6,nAskPrice7,nAskPrice8,nAskPrice9,nAskPrice10,nAskVol1,nAskVol2,nAskVol3,nAskVol4,nAskVol5,nAskVol6,nAskVol7,nAskVol8,nAskVol9,nAskVol10,nBidPrice1,nBidPrice2,nBidPrice3,nBidPrice4,nBidPrice5,nBidPrice6,nBidPrice7,nBidPrice8,nBidPrice9,nBidPrice10,nBidVol1,nBidVol2,nBidVol3,nBidVol4,nBidVol5,nBidVol6,nBidVol7,nBidVol8,nBidVol9,nBidVol10,nNumTrades,iVolume,iTurnover,nTotalBidVol,nTotalAskVol,nWeightedAvgBidPrice,nWeightedAvgAskPrice,nIOPV,nYieldToMaturity,nHighLimited,nLowLimited,nSyl1,nSyl2,nSD2);
 PYBIND11_NUMPY_DTYPE(kline, stock_id, market_time, update_time, open, high, low, close, volume, turnover );
-//
+
 //// define field describe struct
 PYBIND11_NUMPY_DTYPE(cli_field_descriptor2_py, type, flags, name, len, refTableName, inverseRefFieldName );
 
@@ -193,11 +290,13 @@ PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
 //    .def_readwrite("name", &ParameterBinding_py::name);
 
 
+
+
 py::class_<record_struct>(m, "record_struct")
     .def(py::init<>())
     .def_readwrite("snapshot_m", &record_struct::snapshot_m)
     .def_readwrite("kline", &record_struct::kline_m);
-
+ 
 // define export class 
 py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::forcecast
     .def(py::init<>())

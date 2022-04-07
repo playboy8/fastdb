@@ -77,7 +77,7 @@ bool cli_column2_bind(int statement, Record* p)
     rc[i++] = cli_column2(statement, "value20",  cli_int4, NULL, &(p->value20));
     rc[i++] = cli_column2(statement, "value21",  cli_array_of_int1, &len_val21, &(p->value21));
 
-    for (size_t i = 0; i < lens; i++)
+    for (int i = 0; i < lens; i++)
     {
         if( cli_ok != rc[i] )
         {
@@ -117,17 +117,14 @@ static cli_field_descriptor2 record_descriptor[] = {
 
 
 
-
 int main(int arg, char **argv)
 {
-    char_t* databaseName = _T("testpar");
-    char_t* filePath = nullptr;
-    int session, statement, statement2, rc, len;
+    const char_t* databaseName = _T("testpar");
+    const char_t* filePath = nullptr;
+    int session, statement, rc;
     int table_created = 0;
-
-    cli_oid_t oid;
     Record p;
-    char* serverURL;
+    const char* serverURL = NULL;
     
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -167,10 +164,8 @@ int main(int arg, char **argv)
     diff_count diff;
     diff.start();
 
-    int count = 1;
-    int count_num = count;
-    long long sum_select = 0;
-    size_t read_count = 0;
+    int count = 1,sum_select = 0;
+    long long read_count = 0;
     while (read_count < count)
     { 
         rc = cli_fetch(statement, cli_view_only);
@@ -197,7 +192,7 @@ int main(int arg, char **argv)
 
     diff.add_snap();
     diff.show_diff(a,b, true);
-    printf(" IPS:  %8f      totle_select_count:%lld  ,  read_count=%d  \n", sum_select*1.0 * 1000  /  a ,  sum_select, read_count );
+    printf(" IPS:  %8f      totle_select_count:%lld  ,  read_count=%lld  \n", sum_select*1.0 * 1000  /  a ,  sum_select, read_count );
 
     cli_commit(session);
     rc = cli_free(statement);

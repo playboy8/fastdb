@@ -89,7 +89,7 @@ long long selectRecord( int  times)
     diff.add_snap();
     int a,b;
     diff.show_diff(a,b,true);
-    printf(" totole serch records: %lld  ,  totletime_ms: %lld      OPS:%f \n", sum, a , (sum*1000 *1.0 / a*1.0) );
+    printf(" totole serch records: %lld  ,  totletime_ms: %d      OPS:%f \n", sum, a , (sum*1000 *1.0 / a*1.0) );
    return sum;
 }
 

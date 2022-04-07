@@ -32,7 +32,7 @@ typedef struct KLine
     cli_int1_t  value1[10];
 } KLine;
 #pragma pack ()
-
+#if 0
 static cli_field_descriptor KLine_descriptor[] = {
     {cli_int4         , cli_indexed, "stock_id"      },
     {cli_int8         , cli_indexed, "market_time"   },
@@ -45,7 +45,7 @@ static cli_field_descriptor KLine_descriptor[] = {
     {cli_real8        ,           0, "turnover"      },
     {cli_array_of_int1,           0, "value1"        }
 };        
-
+#endif
 bool cli_column2_bind(int statement, KLine* p)
 {
     const int lens = 10;
@@ -68,7 +68,7 @@ bool cli_column2_bind(int statement, KLine* p)
     {
         if( cli_ok != rc[i] )
         {
-            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
+            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%ld \n", rc[i],i );
             return false;
         }
     }
@@ -77,7 +77,7 @@ bool cli_column2_bind(int statement, KLine* p)
 
 void show_data(KLine *p)
 {
-    fprintf(stderr, "recive record :  %8d, %12lld, %12lld, %8f, %8f, %8f , %8f , %lld, %8f \n", p->stock_id,p->market_time, p->update_time, p->open, p->high, p->low, p->close, p->volume, p->turnover);
+    fprintf(stderr, "recive record :  %8d, %12ld, %12ld, %8f, %8f, %8f , %8f , %ld, %8f \n", p->stock_id,p->market_time, p->update_time, p->open, p->high, p->low, p->close, p->volume, p->turnover);
 }
 
 cli_oid_t fetch_all_data(int statement,int session, KLine *p)
@@ -151,14 +151,14 @@ int fetch_new_data(int statement, int session ,KLine *p, cli_oid_t oid , cli_int
 
 int main(int arg, char **argv)
 {
-    char_t* databaseName = _T("testpar2");
+    const char_t* databaseName = _T("testpar2");
     int session, statement, statement2, rc ;
 
     cli_oid_t oid;
     KLine p;
     cli_int4_t start_stockid;
     cli_int8_t update_time; 
-    char* serverURL ;
+    const char* serverURL ;
 
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {

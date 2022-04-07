@@ -35,6 +35,7 @@ typedef struct KLine
 } KLine;
 #pragma pack ()
 
+#if 0
 static cli_field_descriptor KLine_descriptor[] = {
     {cli_int4         , cli_indexed, "stock_id"      },
     {cli_int8         , cli_indexed, "market_time"   },
@@ -47,7 +48,7 @@ static cli_field_descriptor KLine_descriptor[] = {
     {cli_real8        ,           0, "turnover"      },
     {cli_array_of_int1,           0, "value1"        }
 };        
-
+#endif
 
 bool cli_column2_bind(int statement, KLine* p)
 {
@@ -71,7 +72,7 @@ bool cli_column2_bind(int statement, KLine* p)
     {
         if( cli_ok != rc[i] )
         {
-            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
+            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%ld \n", rc[i],i );
             return false;
         }
     }
@@ -85,7 +86,7 @@ void mock_data(KLine record_arry[] , int record_num, bool new_or_update, cli_int
     if(new_or_update) start_time += 1;
     *curr_time = start_time;
 
-    memset(record_arry, 0, sizeof(record_arry));
+    memset(record_arry, 0, sizeof(KLine)*record_num);
     for(int i=0 ; i < record_num; i++)
     {
        record_arry[i].stock_id= start_stock+i;
@@ -134,18 +135,18 @@ int  update_or_insert(int stat_update, int stat_insert, KLine* record_arry,  KLi
             return EXIT_FAILURE;
         }
 
-        fprintf(stderr, " found last record := %lld,  now update to: %lld, id:%d, market_time:%lld \n", old_time, dst->update_time, dst->stock_id,dst->market_time  );   
+        fprintf(stderr, " found last record := %ld,  now update to: %ld, id:%d, market_time:%ld \n", old_time, dst->update_time, dst->stock_id,dst->market_time  );   
     }
     else
     {
         cli_precommit(session);
-        cli_insert_multy(stat_insert,record_arry, 1, oid);
+        rc = cli_insert_multy(stat_insert,record_arry, 1, oid);
         if (rc != cli_ok) { 
             fprintf(stderr, "cli_insert failed with code %d\n", rc);
             return EXIT_FAILURE;
         }
         else
-            fprintf(stderr, " add new record, time: %lld, id:%d, market_time:%lld \n", record_arry->update_time, record_arry->stock_id,record_arry->market_time  );   
+            fprintf(stderr, " add new record, time: %ld, id:%d, market_time:%ld \n", record_arry->update_time, record_arry->stock_id,record_arry->market_time  );   
          
     }
     return 0;
@@ -153,14 +154,14 @@ int  update_or_insert(int stat_update, int stat_insert, KLine* record_arry,  KLi
 
 int main(int arg, char **argv)
 {
-    char_t* databaseName = _T("testpar2");
-    int  statement, statement2, rc, len;
+    const char_t* databaseName = _T("testpar2");
+    int  statement, statement2, rc;
     int table_created = 0;
     cli_oid_t oid;
     KLine p;
     cli_int4_t start_stockid;
     cli_int8_t curr_time;
-    char* serverURL;
+    const char* serverURL;
 
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -169,7 +170,7 @@ int main(int arg, char **argv)
     }    
     else
     {
-        serverURL = "127.0.0.1:6300";
+        serverURL = "127.0.0.1:6100";
         std::cout << " Local mode , IP: " << serverURL << "\n";
     }  
 
@@ -183,7 +184,7 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-    statement = cli_statement(session, "insert into KLine");
+    statement = cli_statement(session, "insert into kline");
     if (statement < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement);
         return EXIT_FAILURE;
@@ -195,7 +196,7 @@ int main(int arg, char **argv)
         return EXIT_FAILURE;
     }
 
-    statement2 = cli_statement(session, "select * from KLine where stock_id=%stock_id and market_time=%market_time");
+    statement2 = cli_statement(session, "select * from kline where stock_id=%stock_id and market_time=%market_time");
     if (statement2 < 0) { 
         fprintf(stderr, "cli_statement failed with code %d\n", statement );
         return EXIT_FAILURE;
@@ -245,7 +246,7 @@ int main(int arg, char **argv)
     }
 
     if (table_created) { 
-	rc = cli_drop_table(session, "KLine");
+	rc = cli_drop_table(session, "kline");
 	if (rc != cli_ok) { 
 	    fprintf(stderr, "cli_drop_table failed with code %d\n", rc);
 	    return EXIT_FAILURE;

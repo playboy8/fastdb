@@ -82,7 +82,7 @@ bool cli_column2_bind(int statement, Record* p)
     {
         if( cli_ok != rc[i] )
         {
-            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
+            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%ld \n", rc[i],i );
             return false;
         }
     }
@@ -119,14 +119,11 @@ static cli_field_descriptor2 record_descriptor[] = {
 
 int main(int arg, char **argv)
 {      
-    char_t* databaseName = _T("testpar");
-    
-    char_t* filePath = nullptr;
-    int session, statement, statement2, rc, len;
+    const char_t* databaseName = _T("testpar");
+    int session, statement, rc;
     int table_created = 0;
-    cli_oid_t oid;
     Record p;
-    char* serverURL ;
+    const char* serverURL ;
 
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -143,7 +140,7 @@ int main(int arg, char **argv)
     if (session == cli_bad_address) { 
         printf(" create local database ...\n");
         
-	//    session = cli_create(databaseName, filePath, 0, 0, 100*1024*1024, 100*1024*1024, 512*1024, 0); 
+	    session = cli_create(databaseName, "", 0, 0, 100*1024*1024, 100*1024*1024, 512*1024, 0); 
     }
     printf(" session = %d  \n",session);
 
@@ -164,8 +161,6 @@ int main(int arg, char **argv)
        return EXIT_FAILURE;
     }
 
-    int count = 2;
-    int count_num = count;
     long long sum_select = 0;
  
     rc = cli_fetch(statement, cli_view_only);

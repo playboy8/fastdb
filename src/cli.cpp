@@ -473,14 +473,19 @@ int cli_column_autobind(int statement, void* p, int record_len, cli_field_descri
             curr_size = sizeof_type[curr->type-cli_array_of_oid];
             curr_size *= curr->len;
             rc[i] = cli_column2(statement, curr->name, curr->type, &curr->len, p_dst);
+
+            printf("( %d, %s, %d, %p , curr_size:%d )\n",statement, curr->name, curr->type, p_dst , curr_size );
         }
         else
         {
             rc[i] = cli_column2(statement, curr->name, curr->type, NULL, p_dst);
             curr_size = sizeof_type[curr->type];
+             printf("( %d, %s, %d, %p , curr_size:%d)\n",statement, curr->name, curr->type, p_dst, curr_size );
         }
         p_dst += curr_size;  
     }
+
+    printf(" real size=%d , record_len=%d", p_dst-(char*)p , record_len );
 
     if(p_dst != ((char*)p + record_len))
     {

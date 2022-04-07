@@ -131,6 +131,7 @@ namespace cli_plusplus {
     /*********************************************************************
      * 创建类sql语句
      * sql: 语句
+     * record_size：一个记录结构的大小
      * field_desc： 字段描述数组
      * field_num： 字段描述数组大小
      * parament_field_desc： 参数描述数组
@@ -138,7 +139,7 @@ namespace cli_plusplus {
      * ret：参照 enum cli_result_code 解析操作结果
      * 
      */
-    int create_statement(std::string sql, cli_field_descriptor2 field_desc[], int field_num, ParameterBinding parament_field_desc[], int parament_num);
+    int create_statement(std::string sql, int record_size, cli_field_descriptor2 field_desc[], int field_num, ParameterBinding parament_field_desc[], int parament_num);
 
 
     /*********************************************************************
@@ -279,7 +280,7 @@ namespace cli_plusplus {
         if(statement >= 0)
         {
             statements.push_back(statement);          
-            if( 0 != cli_column_autobind(statement,&record,field_descs,field_num))
+            if( 0 != cli_column_autobind(statement,&record, sizeof(record),field_descs,field_num))
             {
                 statements.pop_back();
                 return -1;
@@ -313,7 +314,7 @@ namespace cli_plusplus {
     }
 
     template < typename T >
-    int cli_api<T>::create_statement(std::string sql, cli_field_descriptor2 field_descs[], int field_num, ParameterBinding parament_field_descs[], int parament_num)
+    int cli_api<T>::create_statement(std::string sql, int record_size, cli_field_descriptor2 field_descs[], int field_num, ParameterBinding parament_field_descs[], int parament_num)
     {
         int rc;
         if(active_stat >=0 )
@@ -323,7 +324,7 @@ namespace cli_plusplus {
         if(statement >= 0)
         {
             statements.push_back(statement);    
-            if( cli_ok != (rc = cli_column_autobind(statement, &record, sizeof(record), field_descs, field_num)))
+            if( cli_ok != (rc = cli_column_autobind(statement, &record, record_size, field_descs, field_num)))
             {
                 statements.pop_back();
                 show_db_respond("create_statement(" << sql << " ) failed ,  error code: " << rc );

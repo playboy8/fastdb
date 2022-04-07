@@ -107,7 +107,7 @@ bool cli_column2_bind(int statement, Record* p)
     {
         if( cli_ok != rc[i] )
         {
-            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
+            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%ld \n", rc[i],i );
             return false;
         }
     }
@@ -116,13 +116,13 @@ bool cli_column2_bind(int statement, Record* p)
 
 int main(int arg, char **argv)
 {
-    char_t* databaseName = _T("testpar");
-    char_t* filePath = nullptr;
-    int session, statement, statement2, rc, len;
+    const char_t* databaseName = _T("testpar");
+    const char_t* filePath = nullptr;
+    int session, statement, rc;
     int table_created = 0;
     cli_oid_t oid;
     Record p;
-    char* serverURL ;
+    const char* serverURL ;
     
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -187,7 +187,7 @@ int main(int arg, char **argv)
         strcpy((char*)record_arry[i].value21,"hello ");
     }
 
-    fprintf(stderr, " record_len:%d,   record_num:%d,  \n", sizeof(record_arry[0]), record_num);
+    fprintf(stderr, " record_len:%ld,   record_num:%d,  \n", sizeof(record_arry[0]), record_num);
 
     int a , b ;
     diff_count diff;
@@ -207,7 +207,7 @@ int main(int arg, char **argv)
     diff.show_diff(a,b, true);
     cli_commit(session);
 
-    printf(" IPS:  %8f      totle_insert_count:%lld    \n", record_num* count_num*1.0 * 1000  /  a ,record_num* count_num );
+    printf(" IPS:  %8f      totle_insert_count:%d    \n", record_num* count_num*1.0 * 1000  /  a ,record_num* count_num );
 
     rc = cli_free(statement);
     if (rc != cli_ok) { 

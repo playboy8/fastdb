@@ -108,7 +108,7 @@ bool cli_column2_bind(int statement, Record* p)
     {
         if( cli_ok != rc[i] )
         {
-            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%d \n", rc[i],i );
+            fprintf(stderr, "cli_column2 bind failed with code %d    ,   i=%ld \n", rc[i],i );
             return false;
         }
     }
@@ -118,14 +118,14 @@ bool cli_column2_bind(int statement, Record* p)
 
 int main(int arg, char **argv)
 {
-    char_t* databaseName = _T("testpar");
-    char_t* filePath = nullptr;
-    int session, statement, statement2, rc, len;
+    const char_t* databaseName = _T("testpar");
+    const char_t* filePath = nullptr;
+    int session, statement, rc;
     int table_created = 0;
 
     cli_oid_t oid;
     Record p;
-    char* serverURL ;
+    const char* serverURL ;
     
     if(arg == 2 &&  0 == strcmp(argv[1],"cli"))
     {
@@ -174,12 +174,11 @@ int main(int arg, char **argv)
     p.value = 2;
     p.value1 =3 ;
 
-    int a , b ;
+
     diff_count diff;
     diff.start();
 
     int count =  50 ;
-    int count_num = count;
     while (count-- > 0)
     { 
 
