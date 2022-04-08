@@ -11,7 +11,7 @@
 
 namespace cli_plusplus {
 
-    #ifdef _DEBUG
+    #if TRUE //def _DEBUG
     #define show_db_respond(x)  \
         std::cout << x << std::endl
     #else
@@ -25,10 +25,11 @@ namespace cli_plusplus {
      * 混用。批量操作必须以multy_first 开始，否则返回失败,逐条没有此限制。
      */
     enum class select_flag {
-        fetch = 0,          //每次查询数据时最先查询记录条数
+        fetch = 0,      //每次查询数据时最先查询记录条数
         first,          //获取第一条记录
         last,           //获取最后一条记录
         next,           //获取下一条记录
+        multy_get,      //批量获取数据，并定位至当前批次第一条
         multy_first,    //批量获取到的数据中第一条记录
         multy_last,     //本次批量获取到的数据中最后一条记录
         multy_next,     //批量获取到的数据中下一条记录
@@ -395,6 +396,7 @@ namespace cli_plusplus {
     template < typename T >
     int cli_api<T>::select(int auth, select_flag flag)
     {
+        printf("\nflag=%d", int(flag));
         int statement = active_stat;
         if(select_flag::fetch == flag)
         {
@@ -405,6 +407,7 @@ namespace cli_plusplus {
             int ret = (func[int(flag) -1])(statement);
             if(select_flag::multy_next == flag && ret < 0 )
             {
+                show_db_respond("select(" << session << ") 批量获取下一批记录 :" << ret << " flag=" << int(flag) );
                 ret = cli_get_multy(statement);
             }
             return ret;

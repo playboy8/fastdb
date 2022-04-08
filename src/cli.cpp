@@ -1716,8 +1716,9 @@ static int parser_data(int statement, statement_desc* s, int start_pos)
     return result;
 }
 
-int cli_parser_next(int statement)
+int FASTDB_DLL_ENTRY cli_parser_next(int statement)
 {
+    printf( "cli_parser_next() \n");
     int result = cli_ok;
     statement_desc* s = statements.get(statement);
     if (s == NULL) { 
@@ -1731,6 +1732,7 @@ int cli_parser_next(int statement)
 
 int FASTDB_DLL_ENTRY cli_parser_first(int statement)
 {
+    printf( "cli_parser_first() \n");
     int result = cli_ok;
     statement_desc* s = statements.get(statement);
     if (s == NULL) { 
@@ -1739,11 +1741,12 @@ int FASTDB_DLL_ENTRY cli_parser_first(int statement)
     if (!s->prepared) { 
         return cli_not_fetched;
     }
-    return parser_data(statement,s,0);
+    return parser_data(statement,s,0+sizeof(cli_oid_t));
 }
 
 int FASTDB_DLL_ENTRY cli_parser_last(int statement)
 {
+    printf( "cli_parser_last() \n");
     int result = cli_ok;
     statement_desc* s = statements.get(statement);
     if (s == NULL) { 
@@ -1753,7 +1756,7 @@ int FASTDB_DLL_ENTRY cli_parser_last(int statement)
         return cli_not_fetched;
     }
     if(s->rec_record_len > 0 && s->data_size >0 )
-        return parser_data(statement,s,((s->data_size/s->rec_record_len)-1)* s->rec_record_len );
+        return parser_data(statement,s,((s->data_size/s->rec_record_len)-1)* s->rec_record_len + sizeof(cli_oid_t));
     else
         return cli_runtime_error;
 }

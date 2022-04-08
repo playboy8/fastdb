@@ -130,6 +130,7 @@ typedef struct cli_field_descriptor2_py {
         field.len = len;
         field.refTableName = refTableName;
         field.inverseRefFieldName = inverseRefFieldName;
+        return true;
     }
     
 } cli_field_descriptor2_py;

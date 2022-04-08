@@ -150,7 +150,8 @@ py::enum_<select_flag>(m, "select_flag")
     .value("fetch", select_flag::fetch )                        //每次查询数据时最先查询记录条数                
     .value("first", select_flag::first)                         //获取第一条记录            
     .value("last", select_flag::last )                          //获取最后一条记录            
-    .value("next", select_flag::next)                           //获取下一条记录            
+    .value("next", select_flag::next)                           //获取下一条记录        
+    .value("multy_get", select_flag::multy_get)                      //批量获取数据，并定位至当前批次第一条    
     .value("multy_first", select_flag::multy_first )            //批量获取到的数据中第一条记录                            
     .value("multy_last", select_flag::multy_last)               //本次批量获取到的数据中最后一条记录                        
     .value("multy_next", select_flag::multy_next )              //批量获取到的数据中下一条记录                        
@@ -288,8 +289,6 @@ PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
 //    .def_readwrite("u", &ParameterBinding_py::u)
 //    .def_readwrite("type", &ParameterBinding_py::type)
 //    .def_readwrite("name", &ParameterBinding_py::name);
-
-
 
 
 py::class_<record_struct>(m, "record_struct")
