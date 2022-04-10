@@ -381,7 +381,7 @@ namespace cli_plusplus {
         if (rc != cli_ok) { 
             return 0;
         } 
-        return -1;       
+        return rc;       
     }
 
     int(*func[7])(int )= {

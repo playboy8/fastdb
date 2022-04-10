@@ -1,7 +1,7 @@
 #include "cli_python.h"
 #include "record_struct.hpp"
 #include <thread>
-
+#include <string>
 
 cli_python::cli_python()
 {
@@ -79,9 +79,10 @@ int cli_python::precommit()
     return cliapi.precommit();
 }
  
-int cli_python::insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> record)
+int cli_python::insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record)
 {
     py::buffer_info buf1 = record.request();
+    std::cout << " buf1.size = " << buf1.size << std::endl; 
     
     if( buf1.size == 1)
         return cliapi.insert(*((record_struct*)(buf1.ptr)));   
@@ -90,13 +91,15 @@ int cli_python::insert(py::array_t<snapshot, py::array::c_style | py::array::for
     else return -1;  
 }
 
-int cli_python::insert(py::array_t<kline, py::array::c_style | py::array::forcecast> record)
+int cli_python::insert(py::array_t<kline, py::array::c_style | py::array::forcecast> &record)
 {
-    py::buffer_info buf1 = record.request();
-    if( buf1.size == 1)
-        return cliapi.insert(*((record_struct*)(buf1.ptr)));   
-    else  if( buf1.size > 1)
-        return cliapi.insert((record_struct*)(buf1.ptr), buf1.size ); 
+    py::buffer_info req = record.request();
+    auto *ptr = static_cast<kline *>(req.ptr);
+
+    if( req.size == 1)
+        return cliapi.insert(*((record_struct*)(ptr)));   
+    else  if( req.size > 1)
+        return cliapi.insert((record_struct*)(ptr), req.size ); 
     else return -1;
 }
 
@@ -125,7 +128,7 @@ cli_python::~cli_python()
 
 PYBIND11_MODULE(cli_py, m) {
 
-    //  depends on numpy:
+//  depends on numpy:
     try { py::module::import("numpy"); }
     catch (...) { return; }
 
@@ -144,8 +147,6 @@ py::enum_<stat_func>(m, "stat_func")
     .export_values();
 
 // define enum select_flag 
-
-
 py::enum_<select_flag>(m, "select_flag")                                        
     .value("fetch", select_flag::fetch )                        //每次查询数据时最先查询记录条数                
     .value("first", select_flag::first)                         //获取第一条记录            
@@ -193,8 +194,34 @@ py::enum_<cli_var_type>(m, "cli_var_type")
     .value("cli_unknown", cli_var_type::cli_unknown )
     .export_values();
 
+//define enum  cli_result_code
+py::enum_<cli_result_code>(m, "cli_result_code")
+    .value("cli_ok", cli_result_code::cli_ok )
+    .value("cli_bad_address", cli_result_code::cli_bad_address)
+    .value("cli_connection_refused", cli_result_code::cli_connection_refused )
+    .value("cli_database_not_found", cli_result_code::cli_database_not_found)
+    .value("cli_bad_statement", cli_result_code::cli_bad_statement)
+    .value("cli_parameter_not_found", cli_result_code::cli_parameter_not_found)
+    .value("cli_unbound_parameter", cli_result_code::cli_unbound_parameter)
+    .value("cli_column_not_found", cli_result_code::cli_column_not_found)
+    .value("cli_incompatible_type", cli_result_code::cli_incompatible_type)
+    .value("cli_network_error", cli_result_code::cli_network_error)
+    .value("cli_runtime_error", cli_result_code::cli_runtime_error)
+    .value("cli_bad_descriptor", cli_result_code::cli_bad_descriptor)
+    .value("cli_unsupported_type", cli_result_code::cli_unsupported_type)
+    .value("cli_not_found", cli_result_code::cli_not_found)
+    .value("cli_not_update_mode", cli_result_code::cli_not_update_mode)
+    .value("cli_table_not_found", cli_result_code::cli_table_not_found)
+    .value("cli_not_all_columns_specified", cli_result_code::cli_not_all_columns_specified)
+    .value("cli_not_fetched", cli_result_code::cli_not_fetched)
+    .value("cli_already_updated", cli_result_code::cli_already_updated)
+    .value("cli_table_already_exists", cli_result_code::cli_table_already_exists)
+    .value("cli_not_implemented", cli_result_code::cli_not_implemented)
+    .value("cli_xml_parse_error", cli_result_code::cli_xml_parse_error)
+    .value("cli_backup_failed", cli_result_code::cli_backup_failed)
+    .export_values();
 
-
+// defien kline struct 
 py::class_<kline>(m, "kline")
     .def(py::init<>())
     .def_readwrite("stock_id", &kline::stock_id)
@@ -208,6 +235,7 @@ py::class_<kline>(m, "kline")
     .def_readwrite("turnover", &kline::turnover);
  //   .def_readwrite("value1", &kline::value1); // not support char[]
 
+// defien snapshot struct 
 py::class_<snapshot>(m, "snapshot")
     .def(py::init<>())
     .def_readwrite("cli_int4_t sym", &snapshot::sym )
@@ -291,6 +319,7 @@ PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
 //    .def_readwrite("name", &ParameterBinding_py::name);
 
 
+// define union  record_struct
 py::class_<record_struct>(m, "record_struct")
     .def(py::init<>())
     .def_readwrite("snapshot_m", &record_struct::snapshot_m)
@@ -304,8 +333,8 @@ py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::for
     .def("create_statement", static_cast<int (cli_python::*)(record_type, stat_func, py::str)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
 //    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
-    .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot, py::array::c_style | py::array::forcecast>)>(&cli_python::insert), "insert snapshot record to db" )
-    .def("insert",  static_cast<int (cli_python::*)(py::array_t<kline, py::array::c_style | py::array::forcecast>)>(&cli_python::insert), "insert kline record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert snapshot record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(py::array_t<kline, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert kline record to db" )
     .def("insert_update", &cli_python::insert_update)
     .def("remove", &cli_python::remove)
     .def("select", &cli_python::select)

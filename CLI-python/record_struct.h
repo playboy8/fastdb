@@ -89,6 +89,7 @@ typedef struct kline
     cli_int8_t  volume;   
     cli_real8_t  turnover;   
 //    cli_int1_t value1[10];
+//    kline()
 } kline;
 #pragma pack ()      
 

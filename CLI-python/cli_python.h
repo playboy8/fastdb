@@ -25,8 +25,8 @@ public:
     int create_statement(record_type type, stat_func func, py::str sql);
     int create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> parament_field_descs); // , py::array::c_style | py::array::forcecast> array
     record_struct& get_record();
-    int insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> record);
-    int insert(py::array_t<kline, py::array::c_style | py::array::forcecast> record);
+    int insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record);
+    int insert(py::array_t<kline, py::array::c_style | py::array::forcecast> &record);
     int insert_update(record_struct *ptr, int num);
     int remove(py::str table);
     int select(int auth, select_flag flag);

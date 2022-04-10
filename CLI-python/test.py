@@ -22,8 +22,6 @@ rc = cli.open(10,1)
 print(rc)
 
 
-
-
 def test_select():
     print('---------------')
     stmt = cli.create_statement( cli_py.record_type.kline_rec, cli_py.stat_for_select_all, 'select * from kline')
@@ -58,25 +56,32 @@ def test_select():
     print('totle kline num: ' , i )
 
 
+def test_insert():
 #逐条插入
-print('---------------逐条插入----')
-stmt2 = cli.create_statement( cli_py.record_type.kline_rec, cli_py.stat_for_insert, 'insert into kline')
-#print('stmt2=',stmt2)
-
-data = cli_py.kline()
-#data = {227552000.0, 600519, 202206060980400, 26000, 202206060980, 86.66, 87.52, 88.0, 90.24}
-data = np.array([227552000.0, 600519, 202206060980400, 26000, 202206060980, 86.66, 87.52, 88.0, 90.24], dtype=complex,  copy=False )
-
-#np.array(data, dtype=None, copy=True, order=’K’, subok=False, ndmin=0)
-
-#// numpy.ndarray[cli_py.snapshot])
-
-#data = {600519,202206060980,202206060980400,88.0,90.24,86.66,87.52,26000,227552000.0}
-
-inser_rc =cli.insert(data)
-print('inser_rc=',inser_rc)
+    print('---------------逐条插入----')
+    stmt2 = cli.create_statement( cli_py.record_type.kline_rec, cli_py.stat_for_insert, 'insert into kline')
+    print('insert stmt=',stmt2)
+    if stmt2 == cli_py.cli_result_code.cli_ok :
+        data1 = [(600519,202206060980100,202206060980400,88.0,90.24,86.66,87.52,26000,227552000.0)]
+        inser_rc =cli.insert(data1)
+        cli.commit()
+        print('单条插入结束， inser_rc=', inser_rc)
 
 
+def test_multy_insert():
+#逐条插入
+    print('---------------批量插入----')
+    stmt2 = cli.create_statement( cli_py.record_type.kline_rec, cli_py.stat_for_insert, 'insert into kline')
+    print('insert stmt=',stmt2)
+    if stmt2 == cli_py.cli_result_code.cli_ok :   
+        data2 = [(600520,202206060980100,202206060980400,88.0,90.24,86.66,87.52,26000,227552000.0),(600521,202206060980100,202206060980400,88.0,90.24,86.66,87.52,26000,227552000.0)]
+        inser_rc =cli.insert(data2)
+        print('批量插入结束， inser_rc=', inser_rc)
+        cli.commit()
+
+
+test_insert()
+test_multy_insert()
 
 
 
