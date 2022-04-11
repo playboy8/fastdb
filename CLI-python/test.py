@@ -22,20 +22,41 @@ rc = cli.open(10,1)
 print(rc)
 
 
-def test_select():
+def create_selsect_statement():
     print('---------------')
     stmt = cli.create_statement( cli_py.record_type.kline_rec, cli_py.stat_for_select_all, 'select * from kline')
     print('stmt=',stmt)
 
+def create_cond_selsect_statement():
+    print('---------------')
+    # 条件查找
+    field =[(cli_py.cli_int4, 2, 'stock_id',    1, '', ''),
+            (cli_py.cli_int8, 2, 'market_time', 1, '', ''), 
+            (cli_py.cli_int8, 0, 'update_time', 1, '', ''),
+            (cli_py.cli_real8, 0, 'Open',       1, '', ''),
+            (cli_py.cli_real8, 0, 'High',       1, '', ''),
+            (cli_py.cli_real8, 0, 'Low',        1, '', ''),
+            (cli_py.cli_real8, 0, 'Close',      1, '', ''),
+            (cli_py.cli_int8, 0, 'volume',      1, '', ''),
+            (cli_py.cli_real8, 0, 'turnover',   1, '', '')]
+
+    parament = [('600519', cli_py.cli_int4, '%stock_id'),('202206060980100', cli_py.cli_int8, '%market_time')]
+
+#    stmt = cli.create_statement( cli_py.record_type.kline_rec, cli_py.stat_for_update, 'select * from Record where stock_id=%stock_id and market_time=%market_time')
+    stmt = cli.create_statement('select * from kline where stock_id=%stock_id and market_time=%market_time', field, parament )
+    print(stmt)
+
+def test_select():
     data = cli.get_record()
     print('-----逐条读取----------')
     select_rc = cli.select(0,cli_py.select_flag.fetch)
     select_rc = cli.select(0,cli_py.select_flag.first)
-    for i in range(5):
-        if select_rc < 0 :
-            break
-        show_kline(data.kline)
-        select_rc = cli.select(0,cli_py.select_flag.next)
+    print('get first ret: ',select_rc)
+
+    if select_rc < 0 :
+        return
+    show_kline(data.kline)
+    select_rc = cli.select(0,cli_py.select_flag.next)
     cli.commit()
 
     print('-----批量读取----------')
@@ -56,6 +77,11 @@ def test_select():
     print('totle kline num: ' , i )
 
 
+def tset_cond_select():
+    create_cond_selsect_statement()
+    test_select()
+
+
 def test_insert():
 #逐条插入
     print('---------------逐条插入----')
@@ -66,6 +92,7 @@ def test_insert():
         inser_rc =cli.insert(data1)
         cli.commit()
         print('单条插入结束， inser_rc=', inser_rc)
+    cli.commit()
 
 
 def test_multy_insert():
@@ -80,8 +107,10 @@ def test_multy_insert():
         cli.commit()
 
 
-test_insert()
-test_multy_insert()
+#test_insert()
+#test_multy_insert()
+
+tset_cond_select()
 
 
 

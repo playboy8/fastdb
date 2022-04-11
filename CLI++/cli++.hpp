@@ -11,7 +11,7 @@
 
 namespace cli_plusplus {
 
-    #if TRUE //def _DEBUG
+    #if 1 //TRUE //def _DEBUG
     #define show_db_respond(x)  \
         std::cout << x << std::endl
     #else

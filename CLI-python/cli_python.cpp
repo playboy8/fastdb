@@ -26,7 +26,7 @@ int cli_python::create_statement(record_type type, stat_func func, py::str sql)
     {
         return cliapi.create_statement(sql, record_size[int(rec_type)], (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], nullptr, 0); 
     }
-    else if(func == stat_for_insert || func == stat_for_select_all )
+    else if(func == stat_for_update || func == stat_for_select_spec )
     {
         return cliapi.create_statement(sql, record_size[int(type)], (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], (ParameterBinding*)par_desc_data[int(type)] , par_desc_data_size[int(type)] );
     }
@@ -37,7 +37,7 @@ int cli_python::create_statement(record_type type, stat_func func, py::str sql)
 }
 
 //, py::array::c_style | py::array::forcecast
-int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> parament_field_descs)
+int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> &field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> &parament_field_descs)
 {
     std::vector<cli_field_descriptor2>  filed;
     std::vector<ParameterBinding>  para;
@@ -45,13 +45,17 @@ int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_
     py::buffer_info buf1 = parament_field_descs.request();
     cli_field_descriptor2_py* pfield =  (cli_field_descriptor2_py*)(buf0.ptr);
     ParameterBinding_py* ppar =  (ParameterBinding_py*)(buf1.ptr);
+    filed.resize(buf0.size);
+    para.resize(buf1.size);
 
     for(int i = 0; i < buf0.size; i++)
         pfield[i].convert_parament(filed[i]);
     for(int i = 0; i < buf1.size; i++)
         ppar[i].convert_parament(para[i]);
 
-    return cliapi.create_statement(sql,record_size[int(rec_type)], filed.data(), filed.size() , para.data(), para.size());   
+       std::cout << "" << "" ; 
+    rec_type = record_type::kline_rec;
+    return cliapi.create_statement(std::string(sql),record_size[rec_type], filed.data(), buf0.size , para.data(), buf1.size );   
 }
 
 int cli_python::select(int auth, select_flag flag)
@@ -331,6 +335,7 @@ py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::for
     .def("cli_python_init", &cli_python::cli_python_init)
     .def("open", &cli_python::open)
     .def("create_statement", static_cast<int (cli_python::*)(record_type, stat_func, py::str)>(&cli_python::create_statement))
+    .def("create_statement", static_cast<int (cli_python::*)(py::str, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast>&, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast>&)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
 //    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
     .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert snapshot record to db" )
