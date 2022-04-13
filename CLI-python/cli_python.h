@@ -27,6 +27,9 @@ public:
     record_struct& get_record();
     int insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record);
     int insert(py::array_t<kline, py::array::c_style | py::array::forcecast> &record);
+    int insert(std::vector<snapshot> &record);
+    int insert(std::vector<kline> &record);
+
     int insert_update(record_struct *ptr, int num);
     int remove(py::str table);
     int select(int auth, select_flag flag);

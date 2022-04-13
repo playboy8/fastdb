@@ -2,6 +2,7 @@
 #include "record_struct.hpp"
 #include <thread>
 #include <string>
+#include <vector>
 
 cli_python::cli_python()
 {
@@ -105,6 +106,24 @@ int cli_python::insert(py::array_t<kline, py::array::c_style | py::array::forcec
     else  if( req.size > 1)
         return cliapi.insert((record_struct*)(ptr), req.size ); 
     else return -1;
+}
+
+int cli_python::insert(std::vector<snapshot> &record)
+{
+    if( record.size() == 1)
+        return cliapi.insert(*((record_struct*)(record.data())));   
+    else  if( record.size() > 1)
+        return cliapi.insert((record_struct*)(record.data()), record.size() ); 
+    else return -1;
+}
+
+int cli_python::insert(std::vector<kline> &record)
+{
+    if( record.size() == 1)
+        return cliapi.insert(*((record_struct*)(record.data())));   
+    else  if( record.size() > 1)
+        return cliapi.insert((record_struct*)(record.data()), record.size() ); 
+    else return -1;    
 }
 
 int cli_python::insert_update(record_struct *ptr, int num)
