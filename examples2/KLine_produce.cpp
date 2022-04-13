@@ -31,7 +31,7 @@ typedef struct KLine
     cli_real8_t close; 
     cli_int8_t  volume;   
     cli_real8_t  turnover;   
-    cli_int1_t  value1[10];
+ //   cli_int1_t  value1[10];
 } KLine;
 #pragma pack ()
 
@@ -55,7 +55,7 @@ bool cli_column2_bind(int statement, KLine* p)
     const int lens = 10;
     int rc[lens]= {0,};
     int i = 0 ;
-    static int len_val21 = sizeof(p->value1)/sizeof(p->value1[0]);
+//    static int len_val21 = sizeof(p->value1)/sizeof(p->value1[0]);
 
     rc[i++] = cli_column2(statement, "stock_id"   , cli_int4,          NULL, &(p->stock_id   ));
     rc[i++] = cli_column2(statement, "market_time", cli_int8,          NULL, &(p->market_time));
@@ -66,7 +66,7 @@ bool cli_column2_bind(int statement, KLine* p)
     rc[i++] = cli_column2(statement, "Close"      , cli_real8   ,      NULL, &(p->close      ));
     rc[i++] = cli_column2(statement, "volume"     , cli_int8    ,      NULL, &(p->volume     ));
     rc[i++] = cli_column2(statement, "turnover"   , cli_real8    ,     NULL, &(p->turnover   ));
-    rc[i++] = cli_column2(statement, "value1"    , cli_array_of_int1,  &len_val21, &(p->value1    ));
+//    rc[i++] = cli_column2(statement, "value1"    , cli_array_of_int1,  &len_val21, &(p->value1    ));
 
     for (size_t i = 0; i < lens; i++)
     {
@@ -100,7 +100,7 @@ void mock_data(KLine record_arry[] , int record_num, bool new_or_update, cli_int
        record_arry[i].close = 87.52;
        record_arry[i].volume = 26000;
        record_arry[i].turnover = 227552000;
-       strcpy((char*)record_arry[i].value1,"reserved");
+//       strcpy((char*)record_arry[i].value1,"reserved");
     }
 
     *start_stockid = start_stock ;   
@@ -154,7 +154,7 @@ int  update_or_insert(int stat_update, int stat_insert, KLine* record_arry,  KLi
 
 int main(int arg, char **argv)
 {
-    const char_t* databaseName = _T("testpar2");
+    const char_t* databaseName = _T("testpar");
     int  statement, statement2, rc;
     int table_created = 0;
     cli_oid_t oid;

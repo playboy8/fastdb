@@ -76,7 +76,7 @@ long long selectRecord( int  times)
     diff_count diff;
     diff.start(); 
 
-   for (size_t i = 0; i < times; i++)
+   for (int i = 0; i < times; i++)
    {
         dbCursor<Record> cursorRead;  
         int n = cursorRead.select(); 

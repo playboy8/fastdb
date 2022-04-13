@@ -182,7 +182,7 @@ int main(int arg, char **argv)
         while ((rc =  cli_get_multy(statement)) == cli_ok)
         {            
                 read_count++;
-                while (rc = cli_parser_next(statement)== cli_ok)
+                while ((rc = cli_parser_next(statement))== cli_ok)
                 {
                     read_count++;              
                 }            
@@ -192,7 +192,7 @@ int main(int arg, char **argv)
 
     diff.add_snap();
     diff.show_diff(a,b, true);
-    printf(" IPS:  %8f      totle_select_count:%lld  ,  read_count=%lld  \n", sum_select*1.0 * 1000  /  a ,  sum_select, read_count );
+    printf(" IPS:  %8f      totle_select_count:%d  ,  read_count=%lld  \n", sum_select*1.0 * 1000  /  a ,  sum_select, read_count );
 
     cli_commit(session);
     rc = cli_free(statement);
