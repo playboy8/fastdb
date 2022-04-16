@@ -44,7 +44,7 @@ namespace cli_plusplus {
      * {{.i1=5}, .type = cli_int4, .name = "%salary2"}  };
      */       
 
-    template < typename T >
+    
     class cli_api
     {
     private:
@@ -55,7 +55,7 @@ namespace cli_plusplus {
         size_t ext_quantum;
         size_t init_ind_size;
         size_t filesize_limit;
-        T record;
+        std::vector<char> record;
         int session;
         cli_oid_t oid;
         std::vector<int> statements;
@@ -132,7 +132,6 @@ namespace cli_plusplus {
     /*********************************************************************
      * 创建类sql语句
      * sql: 语句
-     * record_size：一个记录结构的大小
      * field_desc： 字段描述数组
      * field_num： 字段描述数组大小
      * parament_field_desc： 参数描述数组
@@ -140,7 +139,7 @@ namespace cli_plusplus {
      * ret：参照 enum cli_result_code 解析操作结果
      * 
      */
-    int create_statement(std::string sql, int record_size, cli_field_descriptor2 field_desc[], int field_num, ParameterBinding parament_field_desc[], int parament_num);
+    int create_statement(std::string sql, cli_field_descriptor2 field_desc[], int field_num, ParameterBinding parament_field_desc[], int parament_num);
 
 
     /*********************************************************************
@@ -150,7 +149,7 @@ namespace cli_plusplus {
      * ret： 成功返回oid（大于等于0）  失败： 小于0
      * 
      */
-    int insert(T* ptr, int num);
+    int insert(void* ptr, int num);
 
     /*********************************************************************
      * 批量插入记录并更新库中重复记录
@@ -159,7 +158,7 @@ namespace cli_plusplus {
      * ret： 成功返回oid（大于等于0）  失败： 小于0
      * 
      */
-    int insert_update(T* ptr, int num);
+    int insert_update(void* ptr, int num);
 
 
     /*********************************************************************
@@ -168,7 +167,7 @@ namespace cli_plusplus {
      * ret： 成功返回oid（大于等于0）  失败： 小于0
      * 
      */
-    int insert(T& data );
+    int insert(void* data );
     
 
     /*********************************************************************
@@ -185,10 +184,10 @@ namespace cli_plusplus {
 
     /*********************************************************************
      * 获取当前操作记录的引用， 通过读取和更新此引用来读取更新记录值
-     * ret： 返回记录的引用
-     *  
+     * ret： 返回记录的指针
+     * record_size: 用获取记录的字节长度值，调用后被设置
      */    
-    T& get_record();
+    void* get_record(int& record_size);
 
 
     /*********************************************************************
@@ -232,8 +231,8 @@ namespace cli_plusplus {
 
     };
 
-    template < typename T >
-    cli_api<T>::cli_api(std::string url, std::string database_name, std::string file_name, size_t initDatabaseSize, size_t extensionQuantum, size_t initIndexSize,size_t fileSizeLimit)
+    
+    cli_api::cli_api(std::string url, std::string database_name, std::string file_name, size_t initDatabaseSize, size_t extensionQuantum, size_t initIndexSize,size_t fileSizeLimit)
     {
         serverURL =url;
         dbname = database_name;
@@ -246,8 +245,8 @@ namespace cli_plusplus {
         session = -1;
     }
 
-    template < typename T >
-    void cli_api<T>::cli_api_init(std::string url, std::string database_name, std::string file_name, size_t initDatabaseSize, size_t extensionQuantum, size_t initIndexSize,size_t fileSizeLimit)
+    
+    void cli_api::cli_api_init(std::string url, std::string database_name, std::string file_name, size_t initDatabaseSize, size_t extensionQuantum, size_t initIndexSize,size_t fileSizeLimit)
     {
         serverURL =url;
         dbname = database_name;
@@ -260,28 +259,31 @@ namespace cli_plusplus {
         session = -1;
     }
 
-    template < typename T >
-    cli_api<T>::~cli_api()
+    
+    cli_api::~cli_api()
     {
         closedb();
     }
 
-    template < typename T >
-    int cli_api<T>::opendb(int retry, int timeout)
+    
+    int cli_api::opendb(int retry, int timeout)
     {
         session = cli_open(serverURL.c_str(), retry, timeout);
         show_db_respond("opendb(" << serverURL  << ") " << "   with sessionid= " <<  session );
         return session;
     }
 
-    template < typename T >
-    int cli_api<T>::create_statement(std::string sql, cli_field_descriptor2 field_descs[], int field_num)
+    
+    int cli_api::create_statement(std::string sql, cli_field_descriptor2 field_descs[], int field_num)
     {
         int  statement = cli_statement(session, sql.c_str());
         if(statement >= 0)
         {
-            statements.push_back(statement);          
-            if( 0 != cli_column_autobind(statement,&record, sizeof(record),field_descs,field_num))
+            statements.push_back(statement);     
+            long unsigned record_size = cli_cal_record_size(field_descs,field_num);
+            if( record.size() < record_size )
+                record.resize(record_size);     
+            if( 0 != cli_column_autobind(statement,record.data(), record_size,field_descs,field_num))
             {
                 statements.pop_back();
                 return -1;
@@ -301,8 +303,8 @@ namespace cli_plusplus {
         return statement;
     }
 
-    template < typename T >
-    int cli_api<T>::add_statement_parament(std::string sql, ParameterBinding parament_field_desc[], int parament_num)
+    
+    int cli_api::add_statement_parament(std::string sql, ParameterBinding parament_field_desc[], int parament_num)
     {
         int rc = cli_ok;
         for(int i = 0; i < parament_num; i++)
@@ -314,8 +316,8 @@ namespace cli_plusplus {
         return rc;
     }
 
-    template < typename T >
-    int cli_api<T>::create_statement(std::string sql, int record_size, cli_field_descriptor2 field_descs[], int field_num, ParameterBinding parament_field_descs[], int parament_num)
+    
+    int cli_api::create_statement(std::string sql, cli_field_descriptor2 field_descs[], int field_num, ParameterBinding parament_field_descs[], int parament_num)
     {
         int rc;
         if(active_stat >=0 )
@@ -324,8 +326,11 @@ namespace cli_plusplus {
         int statement = cli_statement(session, sql.c_str());
         if(statement >= 0)
         {
+            
+            int record_size = cli_cal_record_size(field_descs,field_num);
+            record.resize(record_size);   
             statements.push_back(statement);    
-            if( cli_ok != (rc = cli_column_autobind(statement, &record, record_size, field_descs, field_num)))
+            if( cli_ok != (rc = cli_column_autobind(statement, record.data(), record_size, field_descs, field_num)))
             {
                 statements.pop_back();
                 show_db_respond("create_statement(" << sql << " ) failed ,  error code: " << rc );
@@ -333,6 +338,7 @@ namespace cli_plusplus {
             }
 
             active_stat = statement;
+            field_desc.clear();
             if(0 == field_desc.size())
             {
                 for(int i = 0 ; i < field_num; i++)
@@ -359,29 +365,23 @@ namespace cli_plusplus {
         return statement;
     }
 
-    template < typename T >
-    int cli_api<T>::insert(T* ptr, int num)
+    
+    int cli_api::insert(void* ptr, int num)
     {
-        int rc = cli_insert_multy(active_stat, ptr, num, &oid); 
-        return rc;
+        return cli_insert_multy(active_stat, ptr, num, &oid); 
     }
 
-    template < typename T >
-    int cli_api<T>::insert_update(T* ptr, int num)
+    
+    int cli_api::insert_update(void* ptr, int num)
     {
-        int rc = cli_insert_multy_with_filter(active_stat, ptr, num, &oid);
-        return rc;
+        return cli_insert_multy_with_filter(active_stat, ptr, num, &oid);
     }
 
-    template < typename T >
-    int cli_api<T>::insert(T& data )
+    
+    int cli_api::insert(void* data )
     {
-        record = data;
-        int rc = cli_insert(active_stat, &oid);
-        if (rc != cli_ok) { 
-            return 0;
-        } 
-        return rc;       
+        memcpy(record.data(), data, record.size());
+        return cli_insert(active_stat, &oid);   
     }
 
     int(*func[7])(int )= {
@@ -393,10 +393,9 @@ namespace cli_plusplus {
     cli_parser_last,
     cli_parser_next };
 
-    template < typename T >
-    int cli_api<T>::select(int auth, select_flag flag)
+    
+    int cli_api::select(int auth, select_flag flag)
     {
-        printf("\nflag=%d", int(flag));
         int statement = active_stat;
         if(select_flag::fetch == flag)
         {
@@ -414,40 +413,41 @@ namespace cli_plusplus {
         }
     }
 
-    template < typename T >
-    T& cli_api<T>::get_record()
+    
+    void* cli_api::get_record(int& record_size)
     {
-        return record;
+        record_size = record.size();
+        return record.data();
     }
     
-    template < typename T >
-    int cli_api<T>::update()
+    
+    int cli_api::update()
     {
         int rc = cli_update(active_stat);
         int rc2 = cli_precommit(session);
         return (rc == cli_ok)? rc2 : rc;
     }
 
-    template < typename T >
-    int cli_api<T>::remove(std::string table)
+    
+    int cli_api::remove(std::string table)
     {
         return remove_all(table);
     }
 
-    template < typename T >
-    int cli_api<T>::precommit()
+    
+    int cli_api::precommit()
     {
         return cli_precommit(session);
     }
 
-    template < typename T >
-    int cli_api<T>::commit()
+    
+    int cli_api::commit()
     {   
         return cli_commit(session);
     }
 
-    template < typename T >
-    int cli_api<T>::closedb()
+    
+    int cli_api::closedb()
     {
         if(session>=0)
         {
@@ -476,8 +476,8 @@ namespace cli_plusplus {
         return 0;
     }
 
-    template < typename T >
-    inline int cli_api<T>::remove_all(std::string table)
+    
+    inline int cli_api::remove_all(std::string table)
     {
         int rc;
         std::string sql = "select * from " + table;
@@ -487,8 +487,10 @@ namespace cli_plusplus {
             return -1;
         }
 
-        T p;
-        if( field_desc.size() > 0 &&  0 != (rc = cli_column_autobind(sql_statement, &p, sizeof(p), (cli_field_descriptor2*)(field_desc.data()), field_desc.size())))
+        int record_size = cli_cal_record_size(field_desc.data(), field_desc.size());
+        std::vector<char> p;
+        p.resize(record_size);
+        if( field_desc.size() > 0 &&  0 != (rc = cli_column_autobind(sql_statement, p.data(), record_size, (cli_field_descriptor2*)(field_desc.data()), field_desc.size())))
         {            
             show_db_respond("cli_column_autobind(" << sql_statement << "," << sql << " ) failed with errcode:" << rc );
             cli_free(sql_statement);

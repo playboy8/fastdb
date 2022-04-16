@@ -500,6 +500,28 @@ int cli_column_autobind(int statement, void* p, int record_len, cli_field_descri
     return cli_ok;
 }
 
+long unsigned cli_cal_record_size( cli_field_descriptor2 arr[], int arr_len )
+{
+    int totle_size = 0;
+    for(int i = 0 ; i < arr_len; i++)
+    {
+        cli_field_descriptor2* curr = arr+i;
+        int curr_size = 0;      
+        if( curr->type >= cli_array_of_oid && curr->type <= cli_array_of_string )
+        {
+            curr_size = sizeof_type[curr->type-cli_array_of_oid];
+            curr_size *= curr->len;
+        }
+        else
+        {
+            curr_size = sizeof_type[curr->type];
+        }
+        totle_size += curr_size;  
+    }
+    printf("( this record totle_size = %d)\n", totle_size);
+    return totle_size;
+}
+
 int cli_array_column(int            statement,
                      char const*    column_name,
                      int            var_type,

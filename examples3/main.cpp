@@ -66,11 +66,12 @@ static ParameterBinding paraments[2]= {
 int main()
 {
     std::vector<int> temp;
+    Record* data_ptr = nullptr;
     
     int rc = cli_ok;
     bool empty = false;
     bool multy = false;
-    cli_plusplus::cli_api<Record>  dbhandle("127.0.0.1:6300", "testpar3"); 
+    cli_plusplus::cli_api dbhandle("127.0.0.1:6300", "testpar3"); 
     rc = dbhandle.opendb(10, 1);
     if(cli_bad_address == rc || rc < 0)
     {
@@ -78,7 +79,7 @@ int main()
         return -1;
     }
 
-    if(cli_ok != (rc = dbhandle.create_statement(" select * from Record", sizeof(Record), record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
+    if(cli_ok != (rc = dbhandle.create_statement(" select * from Record", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
     {
         std::cout << "创建sql 查询语句失败 ！  错误码：" << rc << std::endl;
         return -1;
@@ -101,7 +102,7 @@ int main()
     {
         if(rc > 1)
         {         
-            rc = dbhandle.select(cli_view_only, cli_plusplus::select_flag::multy_first);
+            rc = dbhandle.select(cli_view_only, cli_plusplus::select_flag::multy_get);
             multy = true;
             if(cli_ok != rc )
             {
@@ -110,7 +111,9 @@ int main()
             else
             {
                 rc = dbhandle.select(cli_view_only, cli_plusplus::select_flag::multy_next);
-                Record &p = dbhandle.get_record();
+                int record_size = 0 ;
+                Record *ptr = (Record *)dbhandle.get_record(record_size);
+                Record &p = *ptr;
                 std::cout << "批量获取第一条数据 ,返回码：" << rc << std::endl;
                 std::cout << "\n id    \t" <<  int(p.id); 
                 std::cout << "\n value \t" <<  int(p.value);    
@@ -137,6 +140,9 @@ int main()
                 std::cout << "\n";
             }
 
+            rc = dbhandle.remove("Record");
+            std::cout << "删除全部数据语句执行完成 ！  返回值：" << rc <<  std::endl;
+
         }
         else
         {
@@ -148,7 +154,9 @@ int main()
             }
             else
             {
-                Record &p = dbhandle.get_record();
+                int record_size = 0 ;
+                Record *ptr = (Record *)dbhandle.get_record(record_size);
+                Record &p = *ptr;
                 std::cout << "获取第一条数据 ,返回码：" << rc << std::endl;
                 std::cout << "\n id    \t" <<  int(p.id); 
                 std::cout << "\n value \t" <<  int(p.value);    
@@ -177,7 +185,7 @@ int main()
 
 
                 {
-                    if(cli_ok != (rc = dbhandle.create_statement(" select * from Record where id=%id and value1=%value1", sizeof(Record), record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), paraments,sizeof(paraments)/sizeof(paraments[0]))))
+                    if(cli_ok != (rc = dbhandle.create_statement(" select * from Record where id=%id and value1=%value1", record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), paraments,sizeof(paraments)/sizeof(paraments[0]))))
                     {
                         std::cout << "创建sql 条件查询语句失败 ！  错误码：" << rc << std::endl;
                         return -1;
@@ -204,7 +212,9 @@ int main()
                     }
                     else
                     {
-                        Record& data = dbhandle.get_record();
+                        int record_size = 0 ;
+                        Record *ptr = (Record *)dbhandle.get_record(record_size);
+                        Record &data = *ptr;
                         data.id += 1;
                         data.value1 += 1;
                         rc = dbhandle.update();
@@ -220,7 +230,7 @@ int main()
     }
     else
     {
-        if(cli_ok != (rc = dbhandle.create_statement(" insert into Record ", sizeof(Record), record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
+        if(cli_ok != (rc = dbhandle.create_statement(" insert into Record ",  record_descriptor, sizeof(record_descriptor)/sizeof(record_descriptor[0]), nullptr,0)))
         {
             std::cout << "创建sql 插入语句失败 ！  错误码：" << rc <<  std::endl;
             return -1;

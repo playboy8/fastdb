@@ -359,6 +359,10 @@ int FASTDB_DLL_ENTRY cli_column_autobind(int statement,
                                           int arr_len );
 
 
+long unsigned FASTDB_DLL_ENTRY cli_cal_record_size( cli_field_descriptor2 arr[], 
+                                          int arr_len );
+
+
 typedef void* (CLI_CALLBACK_CC *cli_column_set)(int var_type, void* var_ptr, int len);
 typedef void* (CLI_CALLBACK_CC *cli_column_get)(int var_type, void* var_ptr, int* len);
 
