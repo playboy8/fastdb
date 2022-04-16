@@ -23,7 +23,7 @@ int cli_python::create_statement(record_type type, stat_func func, py::str sql)
 {  
 
     rec_type = type;
-    if(func == stat_for_insert || func == stat_for_select_all )
+    if(func == stat_for_insert || func == stat_for_select_all)
     {
         return cliapi.create_statement(sql, record_size[int(rec_type)], (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], nullptr, 0); 
     }
@@ -84,46 +84,59 @@ int cli_python::precommit()
     return cliapi.precommit();
 }
  
-int cli_python::insert(py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record)
+int cli_python::insert(bool multy, py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record)
+{
+    py::buffer_info buf1 = record.request(); 
+    if( buf1.size >0 )
+    {
+        if(!multy)
+            return cliapi.insert(*((record_struct*)(buf1.ptr)));   
+        else 
+            return cliapi.insert((record_struct*)(buf1.ptr), buf1.size ); 
+    }        
+    else 
+        return -1;  
+}
+
+int cli_python::insert(bool multy, py::array_t<kline, py::array::c_style | py::array::forcecast> &record)
 {
     py::buffer_info buf1 = record.request();
-    std::cout << " buf1.size = " << buf1.size << std::endl; 
-    
-    if( buf1.size == 1)
-        return cliapi.insert(*((record_struct*)(buf1.ptr)));   
-    else  if( buf1.size > 1)
-        return cliapi.insert((record_struct*)(buf1.ptr), buf1.size );  
-    else return -1;  
+    if( buf1.size >0 )
+    {
+        if(!multy)
+            return cliapi.insert(*((record_struct*)(buf1.ptr)));   
+        else 
+            return cliapi.insert((record_struct*)(buf1.ptr), buf1.size ); 
+    }        
+    else 
+        return -1;  
 }
 
-int cli_python::insert(py::array_t<kline, py::array::c_style | py::array::forcecast> &record)
+int cli_python::insert(bool multy, std::vector<snapshot> &record)
 {
-    py::buffer_info req = record.request();
-    auto *ptr = static_cast<kline *>(req.ptr);
-
-    if( req.size == 1)
-        return cliapi.insert(*((record_struct*)(ptr)));   
-    else  if( req.size > 1)
-        return cliapi.insert((record_struct*)(ptr), req.size ); 
-    else return -1;
+    if( record.size() >0 )
+    {
+        if(!multy)
+            return cliapi.insert(*((record_struct*)(record.data())));   
+        else 
+            return cliapi.insert((record_struct*)(record.data()), record.size()); 
+    }
+    else 
+        return -1;  
 }
 
-int cli_python::insert(std::vector<snapshot> &record)
+int cli_python::insert(bool multy, std::vector<kline> &record)
 {
-    if( record.size() == 1)
-        return cliapi.insert(*((record_struct*)(record.data())));   
-    else  if( record.size() > 1)
-        return cliapi.insert((record_struct*)(record.data()), record.size() ); 
-    else return -1;
-}
+    if( record.size() >0 )
+    {
+        if( record.size() == 1)
+            return cliapi.insert(*((record_struct*)(record.data())));   
+        else  if( record.size() > 1)
+            return cliapi.insert((record_struct*)(record.data()), record.size());    
+    }
+    else 
+        return -1; 
 
-int cli_python::insert(std::vector<kline> &record)
-{
-    if( record.size() == 1)
-        return cliapi.insert(*((record_struct*)(record.data())));   
-    else  if( record.size() > 1)
-        return cliapi.insert((record_struct*)(record.data()), record.size() ); 
-    else return -1;    
 }
 
 int cli_python::insert_update(record_struct *ptr, int num)
@@ -261,7 +274,7 @@ py::class_<kline>(m, "kline")
 // defien snapshot struct 
 py::class_<snapshot>(m, "snapshot")
     .def(py::init<>())
-    .def_readwrite("cli_int4_t sym", &snapshot::sym )
+    .def_readwrite("sym", &snapshot::sym )
     .def_readwrite("szWindCode", &snapshot::szWindCode )
     .def_readwrite("nActionDay", &snapshot::nActionDay )
     .def_readwrite("nTime", &snapshot::nTime )
@@ -357,8 +370,8 @@ py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::for
     .def("create_statement", static_cast<int (cli_python::*)(py::str, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast>&, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast>&)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
 //    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
-    .def("insert",  static_cast<int (cli_python::*)(py::array_t<snapshot, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert snapshot record to db" )
-    .def("insert",  static_cast<int (cli_python::*)(py::array_t<kline, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert kline record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(bool, py::array_t<snapshot, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert snapshot record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(bool, py::array_t<kline, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert kline record to db" )
     .def("insert_update", &cli_python::insert_update)
     .def("remove", &cli_python::remove)
     .def("select", &cli_python::select)
