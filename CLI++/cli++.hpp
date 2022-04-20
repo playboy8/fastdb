@@ -229,6 +229,20 @@ namespace cli_plusplus {
      */
     int closedb();
 
+    /*********************************************************************
+     * 获取当前记录的数据字段描述信息 
+     * ret: cli_field_descriptor2 数组
+     * 
+     */
+    std::vector<cli_field_descriptor2> get_curr_field_desc();
+
+    /*********************************************************************
+     * 获取当前记录的字节大小 
+     * ret: cli_field_descriptor2 数组
+     * 
+     */
+    unsigned int get_record_size();
+
     };
 
     
@@ -476,6 +490,15 @@ namespace cli_plusplus {
         return 0;
     }
 
+    std::vector<cli_field_descriptor2> cli_api::get_curr_field_desc()
+    {
+        return field_desc;
+    }
+
+    unsigned int cli_api::get_record_size()
+    {
+        return record.size();
+    }
     
     inline int cli_api::remove_all(std::string table)
     {
