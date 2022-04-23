@@ -474,18 +474,18 @@ int cli_column_autobind(int statement, void* p, int record_len, cli_field_descri
             curr_size *= curr->len;
             rc[i] = cli_column2(statement, curr->name, curr->type, &curr->len, p_dst);
 
-            printf("( %d, %s, %d, %p , curr_size:%d )\n",statement, curr->name, curr->type, p_dst , curr_size );
+            //printf("( %d, %s, %d, %p , curr_size:%d )\n",statement, curr->name, curr->type, p_dst , curr_size );
         }
         else
         {
             rc[i] = cli_column2(statement, curr->name, curr->type, NULL, p_dst);
             curr_size = sizeof_type[curr->type];
-             printf("( %d, %s, %d, %p , curr_size:%d)\n",statement, curr->name, curr->type, p_dst, curr_size );
+            // printf("( %d, %s, %d, %p , curr_size:%d)\n",statement, curr->name, curr->type, p_dst, curr_size );
         }
         p_dst += curr_size;  
     }
 
-    printf(" real size=%d , record_len=%d", p_dst-(char*)p , record_len );
+    //printf(" real size=%d , record_len=%d", p_dst-(char*)p , record_len );
 
     if(p_dst != ((char*)p + record_len))
     {
@@ -1740,7 +1740,7 @@ static int parser_data(int statement, statement_desc* s, int start_pos)
 
 int FASTDB_DLL_ENTRY cli_parser_next(int statement)
 {
-    printf( "cli_parser_next() \n");
+    //printf( "cli_parser_next() \n");
     int result = cli_ok;
     statement_desc* s = statements.get(statement);
     if (s == NULL) { 
@@ -1754,7 +1754,7 @@ int FASTDB_DLL_ENTRY cli_parser_next(int statement)
 
 int FASTDB_DLL_ENTRY cli_parser_first(int statement)
 {
-    printf( "cli_parser_first() \n");
+    //printf( "cli_parser_first() \n");
     int result = cli_ok;
     statement_desc* s = statements.get(statement);
     if (s == NULL) { 
@@ -1768,7 +1768,7 @@ int FASTDB_DLL_ENTRY cli_parser_first(int statement)
 
 int FASTDB_DLL_ENTRY cli_parser_last(int statement)
 {
-    printf( "cli_parser_last() \n");
+    //printf( "cli_parser_last() \n");
     int result = cli_ok;
     statement_desc* s = statements.get(statement);
     if (s == NULL) { 

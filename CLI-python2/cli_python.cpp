@@ -3,7 +3,6 @@
 #include <thread>
 #include <string>
 #include <vector>
-#include <stdexcept>
 
 cli_python::cli_python()
 {
@@ -20,6 +19,25 @@ int cli_python::open(int retry, int timeout)
     return cliapi.opendb(retry,timeout);
 }
 
+int cli_python::create_statement(record_type type, stat_func func, py::str sql)
+{  
+
+    rec_type = type;
+    if(func == stat_for_insert || func == stat_for_select_all)
+    {
+        return cliapi.create_statement(sql,  (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], nullptr, 0); 
+    }
+    else if(func == stat_for_update || func == stat_for_select_spec )
+    {
+        return cliapi.create_statement(sql,  (cli_field_descriptor2*)field_desc_data[int(type)], field_desc_data_size[int(type)], (ParameterBinding*)par_desc_data[int(type)] , par_desc_data_size[int(type)] );
+    }
+    else 
+    {
+        return -1;
+    }
+}
+
+//, py::array::c_style | py::array::forcecast
 int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> &field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> &parament_field_descs)
 {
     std::vector<cli_field_descriptor2>  filed;
@@ -36,9 +54,9 @@ int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_
     for(int i = 0; i < buf1.size; i++)
         ppar[i].convert_parament(para[i]);
 
-       std::cout << " buf0.size =" << buf0.size << "   buf1.size =" << buf1.size << std::endl ; 
+       std::cout << "" << "" ; 
     rec_type = record_type::kline_rec;
-    return cliapi.create_statement(std::string(sql),filed.data(), buf0.size , para.data(), buf1.size );   
+    return cliapi.create_statement(std::string(sql),  filed.data(), buf0.size , para.data(), buf1.size );   
 }
 
 int cli_python::select(int auth, select_flag flag)
@@ -46,39 +64,10 @@ int cli_python::select(int auth, select_flag flag)
     return cliapi.select(auth, flag);
 }
 
-py::list cli_python::get_record()
+record_struct& cli_python::get_record()
 {
-    int record_size =0 ;
-    const char * data = (const char *)cliapi.get_record(record_size);
-    const char * src = data;
-    auto fields = cliapi.get_curr_field_desc();
-    py::list out;
-    std::string str;
-
-    for(auto &t : fields)
-    {
-        char buf[t.len]={0,};
-        switch (t.type)
-        {
-        case cli_int1:         
-            memcpy(buf, src, t.len);
-            str.assign(buf);
-            out.append(str);
-            src +=  t.len;
-            break;
-        case cli_int8:
-            out.append(*((cli_int8_t*)src));
-            src +=  sizeof(cli_int8_t);
-            break; 
-        case cli_real8:
-            out.append(*((cli_real8_t*)src));
-            src +=  sizeof(cli_real8_t);
-            break;                    
-        default:
-            break;
-        }
-    }
-    return out;
+    int size = 0 ;
+    return *((record_struct*)(cliapi.get_record(size)));
 }
 
 int cli_python::update()
@@ -96,59 +85,69 @@ int cli_python::precommit()
     return cliapi.precommit();
 }
  
-
-int cli_python::insert_one(py::list &record)
+int cli_python::insert(bool multy, py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record)
 {
-    std::vector<char> data= {0};
-    data.resize(cliapi.get_record_size());
-    if(convert_in(record, data) && data.size() > 0)
-        return cliapi.insert(data.data());    
+    py::buffer_info buf1 = record.request(); 
+    if( buf1.size >0 )
+    {
+        if(!multy)
+            return cliapi.insert(buf1.ptr);   
+        else 
+            return cliapi.insert(buf1.ptr, buf1.size); 
+    }        
     else 
         return -1;  
 }
 
-int cli_python::insert(py::list &record , int num)
+int cli_python::insert(bool multy, py::array_t<kline, py::array::c_style | py::array::forcecast> &record)
 {
-    std::vector<char> data= {0};
-    auto fields = cliapi.get_curr_field_desc();
-    size_t all_size = fields.size() * num;
-    if( record.size()  != all_size )
+    py::buffer_info buf1 = record.request();
+    if( buf1.size >0 )
     {
-        std::cout << "Error : lost some fields!" << std::endl;
-        return -1;
-    }
-    data.resize(cliapi.get_record_size() * num);
-    if(convert_in(record, data) && data.size() > 0)
-        return cliapi.insert(data.data(), num);    
+        if(!multy)
+            return cliapi.insert(buf1.ptr);   
+        else 
+            return cliapi.insert(buf1.ptr, buf1.size ); 
+    }        
     else 
         return -1;  
 }
 
-int cli_python::insert_update(py::list &record , int num)
+int cli_python::insert(bool multy, std::vector<snapshot> &record)
 {
-    std::vector<char> data= {0};
-    auto fields = cliapi.get_curr_field_desc();
-    if( record.size()  != fields.size() * num)
+    if( record.size() >0 )
     {
-        std::cout << "Error : lost some fields!" << std::endl;
-        return -1;
+        if(!multy)
+            return cliapi.insert(record.data());   
+        else 
+            return cliapi.insert(record.data(), record.size()); 
     }
-    data.resize(cliapi.get_record_size() * num);
-    if(convert_in(record, data) && data.size() > 0)
-        return cliapi.insert_update(data.data(), num);    
+    else 
+        return -1;  
+}
+
+int cli_python::insert(bool multy, std::vector<kline> &record)
+{
+    if( record.size() >0 )
+    {
+        if( record.size() == 1)
+            return cliapi.insert(record.data());   
+        else  if( record.size() > 1)
+            return cliapi.insert(record.data(), record.size());    
+    }
     else 
         return -1; 
-    
+
 }
 
-int cli_python::remove_all(py::str table)
+int cli_python::insert_update(record_struct *ptr, int num)
+{
+    return -1;
+}
+
+int cli_python::remove(py::str table)
 {
     return cliapi.remove(table);   
-}
-
-int cli_python::remove_curr()
-{
-    return cliapi.remove_curr_record();   
 }
 
 cli_python::~cli_python()
@@ -156,90 +155,11 @@ cli_python::~cli_python()
 
 }
 
-static cli_var_type convet_python_type(std::string str)
-{
-    if(str == "<class 'int'>" )
-        return cli_int8;
-    else if(str == "<class 'float'>" )
-        return cli_real8;
-    else if(str == "<class 'str'>" )
-        return cli_int1;
-    else 
-        return cli_unknown;
-}
-
-// 注意 table 定义只运行三种类型  （int8， real8，  int1数组）
-bool cli_python::convert_in(py::list &in, std::vector<char> &record)
-{
-    size_t i = 0, r_id = 0;
-    char *pdst = record.data();
-    static std::vector<unsigned int> filed_pos;
-    auto fields = cliapi.get_curr_field_desc();
-    std::string strdata;
-    size_t filed_num = fields.size();
-    if( 0 != (in.size() % filed_num) )
-    {
-        std::cout << " Error, unmatched input data"  << std::endl;
-        return false;
-    }
-
-    for(auto &t : in)
-    {
-        std::string str =  py::str(py::type::of(t));
-        cli_var_type type = convet_python_type(str);
-        if(fields[i].type != type )
-        {
-            std::cout << " Error, this type not support:" <<  str << "  field name:" << fields[i].name << " record id =" << r_id <<  std::endl;
-            return false;
-        }
-        if(cli_int1 == type)
-        {
-            strdata = py::str(t);
-            if((strdata.size()+1) > size_t(fields[i].len))
-            {
-                std::cout << " Error, this str too long to store ,field name:" <<  fields[i].name << ", totle size limit: " << fields[i].len << std::endl;
-                return false;           
-            }
-        }
-
-        switch (type)
-        {
-        case cli_var_type::cli_int1 :     
-            strcpy(pdst, strdata.c_str());
-            pdst += fields[i].len ;  
-            std::cout << strdata << std::endl;
-            break;
-
-        case cli_var_type::cli_int8 :
-            *((cli_int8_t*)pdst) = t.cast<cli_int8_t>();
-            pdst += sizeof(cli_int8_t);
-             std::cout << t.cast<cli_int8_t>() << std::endl;
-            break;
-        case cli_var_type::cli_real8 :
-            *((cli_real8_t*)pdst) = t.cast<cli_real8_t>();
-            pdst += sizeof(cli_real8_t);
-            std::cout <<  t.cast<cli_real8_t>() << std::endl;
-            break;                
-        default:
-            std::cout << " Error,   error type  in " << fields[i].name << std::endl;
-            return false;  
-            break;
-        }        
-
-        if( i >= filed_num-1)
-        {
-            i = 0; 
-            r_id += 1;
-        }
-        else 
-            i++;
-    }
-    return true;
-}
 
 ///---------------------------------------------------------
 ///---------------------------------------------------------
 ///--------------------for python api ----------------------
+
 
 
 
@@ -429,6 +349,12 @@ PYBIND11_NUMPY_DTYPE(cli_field_descriptor2_py, type, flags, name, len, refTableN
 
 //// define parament struct 
 PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
+//py::class_<ParameterBinding_py>(m, "ParameterBinding_py")
+//    .def(py::init<>())
+//    .def_readwrite("u", &ParameterBinding_py::u)
+//    .def_readwrite("type", &ParameterBinding_py::type)
+//    .def_readwrite("name", &ParameterBinding_py::name);
+
 
 // define union  record_struct
 py::class_<record_struct>(m, "record_struct")
@@ -441,17 +367,17 @@ py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::for
     .def(py::init<>())
     .def("cli_python_init", &cli_python::cli_python_init)
     .def("open", &cli_python::open)
+    .def("create_statement", static_cast<int (cli_python::*)(record_type, stat_func, py::str)>(&cli_python::create_statement))
     .def("create_statement", static_cast<int (cli_python::*)(py::str, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast>&, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast>&)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
 //    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
-    .def("insert",  &cli_python::insert_one, "insert one record to db" )
-    .def("insert",  &cli_python::insert, "insert kline record to db" )
-    .def("insert_update", &cli_python::insert_update, "insert and update to db")
-    .def("remove_all", &cli_python::remove_all) 
-    .def("remove_curr", &cli_python::remove_curr)
+    .def("insert",  static_cast<int (cli_python::*)(bool, py::array_t<snapshot, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert snapshot record to db" )
+    .def("insert",  static_cast<int (cli_python::*)(bool, py::array_t<kline, py::array::c_style | py::array::forcecast>&)>(&cli_python::insert), "insert kline record to db" )
+    .def("insert_update", &cli_python::insert_update)
+    .def("remove", &cli_python::remove)
     .def("select", &cli_python::select)
     .def("update", &cli_python::update)
-    .def("commit", &cli_python::commit)  
+    .def("commit", &cli_python::commit)    
     .def("precommit", &cli_python::precommit);  
 
 }

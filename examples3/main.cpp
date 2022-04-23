@@ -1,4 +1,4 @@
-#include "../CLI++/cli++.hpp"
+#include "../CLI++/cli++.h"
 #include <thread>
 
 #pragma pack (1)
@@ -141,7 +141,7 @@ int main()
             }
 
             rc = dbhandle.remove("Record");
-            std::cout << "删除全部数据语句执行完成 ！  返回值：" << rc <<  std::endl;
+            std::cout << "删除数据语句执行完成 ！  返回值：" << rc <<  std::endl;
 
         }
         else

@@ -6,10 +6,10 @@ project (${name})
 set(fastdb_dir /opt/fastdb64 )
 
 
-file( GLOB  sources  ${CMAKE_SOURCE_DIR} ./main.cpp    )
+file( GLOB  sources  ${CMAKE_SOURCE_DIR} ./main.cpp ../CLI++/*.cpp    )
 
 # -D_DEBUG  -g   
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -std=c++11  -ggdb3  -O2 -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H " ) 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -D_DEBUG -std=c++11  -ggdb3  -O2 -Wno-invalid-offsetof -Wall   -fno-strict-aliasing -DHAVE_CONFIG_H " ) 
 
 include_directories(${fastdb_dir}/include  ../CLI++/ )
 
