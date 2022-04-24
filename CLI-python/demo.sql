@@ -1,3 +1,4 @@
+--测试版本
 open 'testpar';
 create table snapshot (                
     sym                      int8,

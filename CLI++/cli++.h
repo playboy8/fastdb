@@ -67,8 +67,8 @@ namespace cli_plusplus {
      *  构造函数
      * url:  远程数据地址和端口信息 （"127.0.0.1:6100"）
      * database_name:   数据库名称
-     * initDatabaseSize： 指定初始索引大小
-     * extensionQuantum： 内存分配位图的扩展量
+     * initDatabaseSize： 指定数据库初始大小
+     * extensionQuantum： 数据库扩展量
      * initIndexSize： 对象索引的初始大小
      * fileSizeLimit： 文件大小限制（0 - 无限制）
      * 

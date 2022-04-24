@@ -25,15 +25,15 @@ public:
     int open( int retry, int timeout);
     int create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> &field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> &parament_field_descs); // , py::array::c_style | py::array::forcecast> array
     py::list  get_record();
-    int insert_one(py::list &record);
-    int insert(py::list &record, int num);
-    int insert_update(py::list &record , int num);
-    int remove_all(py::str table);
-    int remove_curr();
-    int select(int auth, select_flag flag);
-    int update();
-    int commit();
-    int precommit();
+    cli_result_code insert_one(py::list &record);
+    cli_result_code insert(py::list &record, int num);
+    cli_result_code insert_update(py::list &record , int num);
+    cli_result_code remove_all(py::str table);
+    cli_result_code remove_curr();
+    cli_result_code select(int auth, select_flag flag);
+    cli_result_code update();
+    cli_result_code commit();
+    cli_result_code precommit();
     ~cli_python(); 
 
     py::list show_list(py::list list_m);

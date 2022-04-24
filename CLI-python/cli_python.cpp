@@ -41,9 +41,9 @@ int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_
     return cliapi.create_statement(std::string(sql),filed.data(), buf0.size , para.data(), buf1.size );   
 }
 
-int cli_python::select(int auth, select_flag flag)
+cli_result_code cli_python::select(int auth, select_flag flag)
 {
-    return cliapi.select(auth, flag);
+    return cli_result_code(cliapi.select(auth, flag));
 }
 
 py::list cli_python::get_record()
@@ -81,33 +81,33 @@ py::list cli_python::get_record()
     return out;
 }
 
-int cli_python::update()
+cli_result_code cli_python::update()
 {
-    return cliapi.update();
+    return cli_result_code(cliapi.update());
 }
 
-int cli_python::commit()
+cli_result_code cli_python::commit()
 {
-    return cliapi.commit();
+    return cli_result_code(cliapi.commit());
 }
 
-int cli_python::precommit()
+cli_result_code cli_python::precommit()
 {
-    return cliapi.precommit();
+    return cli_result_code(cliapi.precommit());
 }
  
 
-int cli_python::insert_one(py::list &record)
+cli_result_code cli_python::insert_one(py::list &record)
 {
     std::vector<char> data= {0};
     data.resize(cliapi.get_record_size());
     if(convert_in(record, data) && data.size() > 0)
-        return cliapi.insert(data.data());    
+        return cli_result_code(cliapi.insert(data.data()));    
     else 
-        return -1;  
+        return cli_bad_address;  
 }
 
-int cli_python::insert(py::list &record , int num)
+cli_result_code cli_python::insert(py::list &record , int num)
 {
     std::vector<char> data= {0};
     auto fields = cliapi.get_curr_field_desc();
@@ -115,40 +115,40 @@ int cli_python::insert(py::list &record , int num)
     if( record.size()  != all_size )
     {
         std::cout << "Error : lost some fields!" << std::endl;
-        return -1;
+        return cli_bad_address;
     }
     data.resize(cliapi.get_record_size() * num);
     if(convert_in(record, data) && data.size() > 0)
-        return cliapi.insert(data.data(), num);    
+        return cli_result_code(cliapi.insert(data.data(), num));    
     else 
-        return -1;  
+        return cli_bad_address;  
 }
 
-int cli_python::insert_update(py::list &record , int num)
+cli_result_code cli_python::insert_update(py::list &record , int num)
 {
     std::vector<char> data= {0};
     auto fields = cliapi.get_curr_field_desc();
     if( record.size()  != fields.size() * num)
     {
         std::cout << "Error : lost some fields!" << std::endl;
-        return -1;
+        return cli_bad_address;
     }
     data.resize(cliapi.get_record_size() * num);
     if(convert_in(record, data) && data.size() > 0)
-        return cliapi.insert_update(data.data(), num);    
+        return cli_result_code(cliapi.insert_update(data.data(), num));    
     else 
-        return -1; 
+        return cli_bad_address; 
     
 }
 
-int cli_python::remove_all(py::str table)
+cli_result_code cli_python::remove_all(py::str table)
 {
-    return cliapi.remove(table);   
+    return cli_result_code(cliapi.remove(table));   
 }
 
-int cli_python::remove_curr()
+cli_result_code cli_python::remove_curr()
 {
-    return cliapi.remove_curr_record();   
+    return cli_result_code(cliapi.remove_curr_record());   
 }
 
 cli_python::~cli_python()
@@ -201,7 +201,6 @@ bool cli_python::convert_in(py::list &in, std::vector<char> &record)
                 return false;           
             }
         }
-
         switch (type)
         {
         case cli_var_type::cli_int1 :     
@@ -225,7 +224,6 @@ bool cli_python::convert_in(py::list &in, std::vector<char> &record)
             return false;  
             break;
         }        
-
         if( i >= filed_num-1)
         {
             i = 0; 
@@ -275,6 +273,33 @@ py::enum_<select_flag>(m, "select_flag")
     .value("multy_next", select_flag::multy_next )              //批量获取到的数据中下一条记录                        
     .value("select_flag_max", select_flag::select_flag_max)     //                                 
     .export_values();   
+
+// define all cli operator result 
+py::enum_<cli_result_code>(m, "result_code")        
+    .value("cli_ok", cli_result_code::cli_ok)
+    .value("cli_bad_address", cli_result_code::cli_bad_address)
+    .value("cli_connection_refused", cli_result_code::cli_connection_refused)
+    .value("cli_database_not_found", cli_result_code::cli_database_not_found)
+    .value("cli_bad_statement", cli_result_code::cli_bad_statement)
+    .value("cli_parameter_not_found", cli_result_code::cli_parameter_not_found)
+    .value("cli_unbound_parameter", cli_result_code::cli_unbound_parameter)
+    .value("cli_column_not_found", cli_result_code::cli_column_not_found)
+    .value("cli_incompatible_type", cli_result_code::cli_incompatible_type)
+    .value("cli_network_error", cli_result_code::cli_network_error)
+    .value("cli_runtime_error", cli_result_code::cli_runtime_error)
+    .value("cli_bad_descriptor", cli_result_code::cli_bad_descriptor)
+    .value("cli_unsupported_type", cli_result_code::cli_unsupported_type)
+    .value("cli_not_found", cli_result_code::cli_not_found)
+    .value("cli_not_update_mode", cli_result_code::cli_not_update_mode)
+    .value("cli_table_not_found", cli_result_code::cli_table_not_found)
+    .value("cli_not_all_columns_specified", cli_result_code::cli_not_all_columns_specified)
+    .value("cli_not_fetched", cli_result_code::cli_not_fetched)
+    .value("cli_already_updated", cli_result_code::cli_already_updated)
+    .value("cli_table_already_exists", cli_result_code::cli_table_already_exists)
+    .value("cli_not_implemented", cli_result_code::cli_not_implemented)
+    .value("cli_xml_parse_error", cli_result_code::cli_xml_parse_error)
+    .value("cli_backup_failed", cli_result_code::cli_backup_failed)
+    .export_values(); 
 
 
 // define enum cli_type_flag 

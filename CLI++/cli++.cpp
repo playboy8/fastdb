@@ -54,10 +54,10 @@ namespace cli_plusplus {
             long unsigned record_size = cli_cal_record_size(field_descs,field_num);
             if( record.size() < record_size )
                 record.resize(record_size);     
-            if( 0 != cli_column_autobind(statement,record.data(), record_size,field_descs,field_num))
+            if( cli_ok != cli_column_autobind(statement,record.data(), record_size,field_descs,field_num))
             {
                 statements.pop_back();
-                return -1;
+                return cli_bad_descriptor;
             }
             if(active_stat >=0 )
                 cli_precommit(active_stat);

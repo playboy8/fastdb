@@ -14,14 +14,13 @@ void cli_python::cli_python_init(std::string url, std::string database_name, std
     cliapi.cli_api_init(url, database_name, file_name, initDatabaseSize, extensionQuantum, initIndexSize, fileSizeLimit);
 }
 
-int cli_python::open(int retry, int timeout)
+cli_result_code cli_python::open(int retry, int timeout)
 {
     return cliapi.opendb(retry,timeout);
 }
 
 int cli_python::create_statement(record_type type, stat_func func, py::str sql)
 {  
-
     rec_type = type;
     if(func == stat_for_insert || func == stat_for_select_all)
     {
@@ -33,7 +32,7 @@ int cli_python::create_statement(record_type type, stat_func func, py::str sql)
     }
     else 
     {
-        return -1;
+        return cli_bad_statement;
     }
 }
 
@@ -59,7 +58,7 @@ int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_
     return cliapi.create_statement(std::string(sql),  filed.data(), buf0.size , para.data(), buf1.size );   
 }
 
-int cli_python::select(int auth, select_flag flag)
+cli_result_code cli_python::select(int auth, select_flag flag)
 {
     return cliapi.select(auth, flag);
 }
@@ -70,22 +69,22 @@ record_struct& cli_python::get_record()
     return *((record_struct*)(cliapi.get_record(size)));
 }
 
-int cli_python::update()
+cli_result_code cli_python::update()
 {
     return cliapi.update();
 }
 
-int cli_python::commit()
+cli_result_code cli_python::commit()
 {
     return cliapi.commit();
 }
 
-int cli_python::precommit()
+cli_result_code cli_python::precommit()
 {
     return cliapi.precommit();
 }
  
-int cli_python::insert(bool multy, py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record)
+cli_result_code cli_python::insert(bool multy, py::array_t<snapshot, py::array::c_style | py::array::forcecast> &record)
 {
     py::buffer_info buf1 = record.request(); 
     if( buf1.size >0 )
@@ -96,10 +95,10 @@ int cli_python::insert(bool multy, py::array_t<snapshot, py::array::c_style | py
             return cliapi.insert(buf1.ptr, buf1.size); 
     }        
     else 
-        return -1;  
+        return cli_bad_address;  
 }
 
-int cli_python::insert(bool multy, py::array_t<kline, py::array::c_style | py::array::forcecast> &record)
+cli_result_code cli_python::insert(bool multy, py::array_t<kline, py::array::c_style | py::array::forcecast> &record)
 {
     py::buffer_info buf1 = record.request();
     if( buf1.size >0 )
@@ -110,10 +109,10 @@ int cli_python::insert(bool multy, py::array_t<kline, py::array::c_style | py::a
             return cliapi.insert(buf1.ptr, buf1.size ); 
     }        
     else 
-        return -1;  
+        return cli_bad_address;  
 }
 
-int cli_python::insert(bool multy, std::vector<snapshot> &record)
+cli_result_code cli_python::insert(bool multy, std::vector<snapshot> &record)
 {
     if( record.size() >0 )
     {
@@ -123,10 +122,10 @@ int cli_python::insert(bool multy, std::vector<snapshot> &record)
             return cliapi.insert(record.data(), record.size()); 
     }
     else 
-        return -1;  
+        return cli_bad_address;  
 }
 
-int cli_python::insert(bool multy, std::vector<kline> &record)
+cli_result_code cli_python::insert(bool multy, std::vector<kline> &record)
 {
     if( record.size() >0 )
     {
@@ -136,17 +135,18 @@ int cli_python::insert(bool multy, std::vector<kline> &record)
             return cliapi.insert(record.data(), record.size());    
     }
     else 
-        return -1; 
+        return cli_bad_address; 
 
 }
 
-int cli_python::insert_update(record_struct *ptr, int num)
+cli_result_code cli_python::insert_update(record_struct *ptr, int num)
 {
-    return -1;
+    return cli_result_code::cli_not_implemented;
 }
 
-int cli_python::remove(py::str table)
+cli_result_code cli_python::remove(py::str table)
 {
+    
     return cliapi.remove(table);   
 }
 
@@ -196,6 +196,33 @@ py::enum_<select_flag>(m, "select_flag")
     .value("select_flag_max", select_flag::select_flag_max)     //                                 
     .export_values();   
 
+// define all cli operator result 
+py::enum_<cli_result_code >(m, "result_code")        
+    .value("cli_ok", cli_result_code::cli_ok)
+    .value("cli_bad_address", cli_result_code::cli_bad_address)
+    .value("cli_connection_refused", cli_result_code::cli_connection_refused)
+    .value("cli_database_not_found", cli_result_code::cli_database_not_found)
+    .value("cli_bad_statement", cli_result_code::cli_bad_statement)
+    .value("cli_parameter_not_found", cli_result_code::cli_parameter_not_found)
+    .value("cli_unbound_parameter", cli_result_code::cli_unbound_parameter)
+    .value("cli_column_not_found", cli_result_code::cli_column_not_found)
+    .value("cli_incompatible_type", cli_result_code::cli_incompatible_type)
+    .value("cli_network_error", cli_result_code::cli_network_error)
+    .value("cli_runtime_error", cli_result_code::cli_runtime_error)
+    .value("cli_bad_descriptor", cli_result_code::cli_bad_descriptor)
+    .value("cli_unsupported_type", cli_result_code::cli_unsupported_type)
+    .value("cli_not_found", cli_result_code::cli_not_found)
+    .value("cli_not_update_mode", cli_result_code::cli_not_update_mode)
+    .value("cli_table_not_found", cli_result_code::cli_table_not_found)
+    .value("cli_not_all_columns_specified", cli_result_code::cli_not_all_columns_specified)
+    .value("cli_not_fetched", cli_result_code::cli_not_fetched)
+    .value("cli_already_updated", cli_result_code::cli_already_updated)
+    .value("cli_table_already_exists", cli_result_code::cli_table_already_exists)
+    .value("cli_not_implemented", cli_result_code::cli_not_implemented)
+    .value("cli_xml_parse_error", cli_result_code::cli_xml_parse_error)
+    .value("cli_backup_failed", cli_result_code::cli_backup_failed)
+    .export_values(); 
+};
 
 // define enum cli_type_flag 
 py::enum_<cli_var_type>(m, "cli_var_type")

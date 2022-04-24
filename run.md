@@ -139,26 +139,26 @@
 
 2. 使用sql语句创建数据库服务脚本 
 
-    在上面用到了demo.sql 文件，对sql脚本创建并启动数据库示例如下, 脚本中不支持符号#的注释，以下注释仅用作说明：
+    在上面用到了demo.sql 文件，对sql脚本创建并启动数据库示例如下：
     #创建数据库服务示例: 
-    ```
-    #打开或创建本地数据库
+    ```sql
+    -- 打开或创建本地数据库
     open 'clitest';      
 
-    #创建本地数据表person和其成员   
+    -- 创建本地数据表person和其成员   
     create table persons (  name    string, 
                             salary  int8, 
                             address string, 
                             weight  real8, 
                             subordinates array of reference to persons,
                             blob array of int1  );
-    #设置索引字段/键                        
+    -- 设置索引字段/键                        
     create index on persons.salary;
 
-    #设置索引字段/键
+    -- 设置索引字段/键
     create hash on persons.name;
 
-    #启动网络服务，包含端口和服务线程数
+    -- 启动网络服务，包含端口和服务线程数
     start server 'localhost:6100' 8
     ```
 
@@ -189,63 +189,88 @@
 
     测试程序将 插入数据到数据库 ， 然后 查询数据库内容， 最后删除所有数据, 运行后终端正常打印出读到的数据，并显示删除数据完成，则运行成功。
  
-3. CLI-pytho接口说明  
+3. CLI-pytho接口说明 
 
-    [返回类型]函数名[参数]
-```
-    cli_python()
+- 操作返回类型result_code释义    
+    |枚举值| 含义|
+    | ---- | ---- |
+    |cli_ok| 操作成功|
+    |cli_bad_address | 错误地址  |
+    |cli_connection_refused |  连接被拒绝  |
+    |cli_database_not_found =| 数据库未定义 |
+    |cli_bad_statement | 错误的sql语句|
+    |cli_parameter_not_found |  参数未定义 |
+    |cli_unbound_parameter | 未绑定的参数|
+    |cli_column_not_found | 列字段未定义 |
+    |cli_incompatible_type | 错误的类型|
+    |cli_network_error | 网络错误|
+    |cli_runtime_error =|  运行中错误 |
+    |cli_bad_descriptor =|  错误的描述信息 |
+    |cli_unsupported_type =|不支持的类型 |
+    |cli_not_found        =| 未能查询到信息|
+    |cli_not_update_mode  =|当前为非更新模式 |
+    |cli_table_not_found  =|未定义的表 |
+    |cli_not_all_columns_specified = | 不是所有列字段都被定义了  |
+    |cli_not_fetched =| 还未获取数据 |
+    |cli_already_updated = | 已经更新了|
+    |cli_table_already_exists = |   表已存在 |
+    |cli_not_implemented =| 未实现 |
+    |cli_xml_parse_error =| xml解析错误 |
+    |cli_backup_failed | 备份失败 |
 
-    #数据库初始化
-    void cli_python_init(std::string url, std::string database_name, std::string file_name="", size_t initDatabaseSize=100*1024*1024UL, size_t 
-    extensionQuantum=100*1024*1024UL, size_t initIndexSize=512*1024UL, size_t fileSizeLimit=0UL)
+- 接口类cli_python说明     
+    函数签名 | 作用 | 参数及返回值
+    | ---- | ---- | ---- |
+    |cli_python() | 创建cli_python对象 | 返回对象  |
+    | cli_python_init(str url, str database_name, str file_name="", int initDatabaseSize, int extensionQuantum, int initIndexSize, int fileSizeLimit) | 数据库初始化 | url：服务器ip和端口，形如 127.0.0.1:6100，database_name： 数据库名称， file_name：内存模式下可为空串， initDatabaseSize：指定数据库初始大小，extensionQuantum： 数据库拓展量， initIndexSize： 对象索引初始大小，   fileSizeLimit： 文件大小（0-无限制）   |
+    |int open( int retry, int timeout)|打开数据库| retry：重试次数 ， timeout： 超时时间，单位秒 |
+    |int create_statement(py::str sql,  numpy.array field_descs, numpy.array parament_field_descs)|创建操作语句 | sql：sql语句，  field_descs： 数据表字段描述，parament_field_descs： 参数字段描述 |
+    |list  get_record()|获取查询到的数据 |  返回查询的结果 |
+    |result_code insert_one(list &record)|逐条插入数据||    
+    |result_code insert(list &record, int num)|批量插入多条数据||  
+    |result_code insert_update(list &record , int num)|插入并更新重复数据||  
+    |result_code remove_all(str table)|删除某个表的全部数据||  
+    |result_code remove_curr()|删除游标定位的当前数据||  
+    |result_code select(int auth, select_flag flag)|移动游标以查询数据| |  
+    |result_code update()|更新数据||
+    |result_code precommit()|预提交数据， 数据会落库，资源锁释放，但不结束当前语句， 若后续操作失败或者连接断开， 数数据将roll back| |
+    |result_code commit()|提交数据| 数据落库，资源锁释放,并结束当前语句|
+    
+- select_flag 类型说明
+    |枚举值 | 含义 |
+    | ---- | ---- |
+    |    fetch        | 查询记录条数 |
+    |    first           | 逐条获取第一条记录 |
+    |    last           | 逐条获取最后一条记录 |
+    |    next            | 逐条获取下一条记录 |
+    |    multy_get      | 批量获取数据，并定位至当前批次第一条 |
+    |    multy_first   | 批量获取到的数据中第一条记录 |
+    |    multy_last    | 本次批量获取到的数据中最后一条记录 |
+    |    multy_next    | 批量获取到的数据中下一条记录 |
+    |    select_flag_max |  枚举类型范围最大值 |
 
-    #打开数据库
-    int open( int retry, int timeout)
 
-    #创建操作语句
-    int create_statement(py::str sql,  numpy.array field_descs, numpy.array parament_field_descs)
-
-    #获取查询到的数据
-    list  get_record()
-
-    #逐条插入数据
-    int insert_one(list &record);
-
-    #批量插入多条数据
-    int insert(list &record, int num);
-
-    #插入并更新重复数据
-    int insert_update(list &record , int num)
-
-    #删除全部数据
-    int remove_all(str table)
-
-    #删除当前数据
-    int remove_curr()
-
-    #使用游标选择数据
-    int select(int auth, select_flag flag)
-
-    #更新数据
-    int update()
-
-    #提交数据
-    int commit()
-
-    #预提交数据
-    int precommit()
-```
 更多使用细节参考 /home/work/ms-fastdb/CLI-python/test.py
 
+- 注意事项
+    CLI接口(c++和python) 使用 流程如下：
+    1. 创建对象
+    2. 初始化数据库 
+    3. 打开数据库
+    4. 创建操作插入sql操作语句句柄，选择以逐条 或者 批量操作中的一种 插入数据 。***注意 批量和逐条插入式不同模式， 不能混用 ****。如果插入一条数据后 需要等待一段时间继续插入，需要执行precommit 释放锁资源，操作完成后调用commit接口结束当前句柄的操作。
+    5. 创建操作查询（只读/ 更新）sql语句句柄，fetch 操作获取数据条数，select 接口操作游标。通过get_record读取某一条记录；通过 set_record更新数值，然后调用 update 更新记录； 通过remove_curr 删除游标定位的记录，操作完成后调用commit接口结束当前句柄的操作。
+    6. 调用 remove_all 接口删除某一个数据表的全部内容。
+    以上步骤 4，5，6 步骤按照需求选取， 其他步骤为数据库访问必要步骤。 
 
 
 
 
-## CLI++ 接口
+## CLI++ 接口    
 
-### 接口介绍
+### 接口介绍      
+    接口文档 /home/work/ms-fastdb/CLI++.h
 
-### 测试用例
+### 测试用例    
 
 ```
     1. CLI++ 接口的使用示例路径： /home/work/ms-fastdb/example3
@@ -313,7 +338,7 @@
 ## 查询语句
 
 ### 查询语句语法规则
-
+```
 select-condition ::= ( expression ) ( traverse ) ( order )
 expression ::= disjunction
 disjunction ::= conjunction 
@@ -366,17 +391,18 @@ traverse ::= start from field ( follow by fields-list )
 fields-list ::=  field { , field }
 user-function ::= identifier
 Identifiers are case sensitive, begin with a a-z, A-Z, '_' or '$' character, contain only a-z, A-Z, 0-9, '_' or '$' characters, and do not duplicate a SQL reserved word.
+```
 
 ### 查询语句内置函数
-
+```
 abs	and	asc	between	by
 current	desc	escape	exists	false
 first	follow	from	in	integer
 is	length	like	last	lower
 match	not	null	or	real
 start	string	true	upper
-
-ANSI-standard comments may also be used. All characters after a double-hyphen up to the end of the line are ignored.
+```
+ 
 
 
 
