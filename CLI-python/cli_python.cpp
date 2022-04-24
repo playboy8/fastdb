@@ -22,8 +22,8 @@ int cli_python::open(int retry, int timeout)
 
 int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> &field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> &parament_field_descs)
 {
-    std::vector<cli_field_descriptor2>  filed;
-    std::vector<ParameterBinding>  para;
+    static std::vector<cli_field_descriptor2>  filed;
+    static std::vector<ParameterBinding>  para;
     py::buffer_info buf0 = field_descs.request();
     py::buffer_info buf1 = parament_field_descs.request();
     cli_field_descriptor2_py* pfield =  (cli_field_descriptor2_py*)(buf0.ptr);
@@ -37,7 +37,7 @@ int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_
         ppar[i].convert_parament(para[i]);
 
        std::cout << " buf0.size =" << buf0.size << "   buf1.size =" << buf1.size << std::endl ; 
-    rec_type = record_type::kline_rec;
+    size_t size =cli_cal_record_size(filed.data(), buf0.size);
     return cliapi.create_statement(std::string(sql),filed.data(), buf0.size , para.data(), buf1.size );   
 }
 
