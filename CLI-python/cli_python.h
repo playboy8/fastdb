@@ -34,6 +34,7 @@ public:
     cli_result_code update();
     cli_result_code commit();
     cli_result_code precommit();
+    int update_parament(py::list &t);
     ~cli_python(); 
 
     py::list show_list(py::list list_m);

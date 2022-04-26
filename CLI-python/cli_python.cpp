@@ -20,24 +20,51 @@ int cli_python::open(int retry, int timeout)
     return cliapi.opendb(retry,timeout);
 }
 
+static std::vector<cli_field_descriptor2>  filed;
+static std::vector<ParameterBinding>  para;
+static std::vector<cli_field_descriptor2_py>  filed_py;
+static std::vector<ParameterBinding_py>  para_py;
+
+int cli_python::update_parament(py::list &t)
+{
+    ParameterBinding_py temp;
+    if( t.size() == para.size()) 
+    {
+        int i = 0;
+        for(auto &s : t)
+        {
+            std::string str = py::str(s);
+            temp.convert_parament_2(para[i++],str.c_str());
+        }  
+        return 0;  
+    } 
+    return -1;
+}
+
 int cli_python::create_statement(py::str sql, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast> &field_descs, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast> &parament_field_descs)
 {
-    static std::vector<cli_field_descriptor2>  filed;
-    static std::vector<ParameterBinding>  para;
     py::buffer_info buf0 = field_descs.request();
     py::buffer_info buf1 = parament_field_descs.request();
     cli_field_descriptor2_py* pfield =  (cli_field_descriptor2_py*)(buf0.ptr);
     ParameterBinding_py* ppar =  (ParameterBinding_py*)(buf1.ptr);
+
     filed.resize(buf0.size);
     para.resize(buf1.size);
+    filed_py.resize(buf0.size);
+    para_py.resize(buf1.size);
 
     for(int i = 0; i < buf0.size; i++)
-        pfield[i].convert_parament(filed[i]);
+    {
+        filed_py[i] = pfield[i];
+        filed_py[i].convert_parament(filed[i]);
+    }
     for(int i = 0; i < buf1.size; i++)
-        ppar[i].convert_parament(para[i]);
+    {
+        para_py[i] = ppar[i];
+        para_py[i].convert_parament(para[i]);
+    }
 
-       std::cout << " buf0.size =" << buf0.size << "   buf1.size =" << buf1.size << std::endl ; 
-    size_t size =cli_cal_record_size(filed.data(), buf0.size);
+    std::cout << " buf0.size =" << buf0.size << "   buf1.size =" << buf1.size << std::endl ; 
     return cliapi.create_statement(std::string(sql),filed.data(), buf0.size , para.data(), buf1.size );   
 }
 
@@ -238,20 +265,11 @@ bool cli_python::convert_in(py::list &in, std::vector<char> &record)
 ///---------------------------------------------------------
 ///---------------------------------------------------------
 ///--------------------for python api ----------------------
-
-
-
 PYBIND11_MODULE(cli_py, m) {
 
 //  depends on numpy:
     try { py::module::import("numpy"); }
     catch (...) { return; }
-
-// define enum record_type
-py::enum_<record_type>(m, "record_type")
-    .value("snapshot_rec", record_type::snapshot_rec )
-    .value("kline_rec", record_type::kline_rec)
-    .export_values();
 
 // define enum record_type
 py::enum_<stat_func>(m, "stat_func")
@@ -336,130 +354,11 @@ py::enum_<cli_var_type>(m, "cli_var_type")
     .value("cli_unknown", cli_var_type::cli_unknown )
     .export_values();
 
-//define enum  cli_result_code
-py::enum_<cli_result_code>(m, "cli_result_code")
-    .value("cli_ok", cli_result_code::cli_ok )
-    .value("cli_bad_address", cli_result_code::cli_bad_address)
-    .value("cli_connection_refused", cli_result_code::cli_connection_refused )
-    .value("cli_database_not_found", cli_result_code::cli_database_not_found)
-    .value("cli_bad_statement", cli_result_code::cli_bad_statement)
-    .value("cli_parameter_not_found", cli_result_code::cli_parameter_not_found)
-    .value("cli_unbound_parameter", cli_result_code::cli_unbound_parameter)
-    .value("cli_column_not_found", cli_result_code::cli_column_not_found)
-    .value("cli_incompatible_type", cli_result_code::cli_incompatible_type)
-    .value("cli_network_error", cli_result_code::cli_network_error)
-    .value("cli_runtime_error", cli_result_code::cli_runtime_error)
-    .value("cli_bad_descriptor", cli_result_code::cli_bad_descriptor)
-    .value("cli_unsupported_type", cli_result_code::cli_unsupported_type)
-    .value("cli_not_found", cli_result_code::cli_not_found)
-    .value("cli_not_update_mode", cli_result_code::cli_not_update_mode)
-    .value("cli_table_not_found", cli_result_code::cli_table_not_found)
-    .value("cli_not_all_columns_specified", cli_result_code::cli_not_all_columns_specified)
-    .value("cli_not_fetched", cli_result_code::cli_not_fetched)
-    .value("cli_already_updated", cli_result_code::cli_already_updated)
-    .value("cli_table_already_exists", cli_result_code::cli_table_already_exists)
-    .value("cli_not_implemented", cli_result_code::cli_not_implemented)
-    .value("cli_xml_parse_error", cli_result_code::cli_xml_parse_error)
-    .value("cli_backup_failed", cli_result_code::cli_backup_failed)
-    .export_values();
-
-// defien kline struct 
-py::class_<kline>(m, "kline")
-    .def(py::init<>())
-    .def_readwrite("stock_id", &kline::stock_id)
-    .def_readwrite("market_time", &kline::market_time)
-    .def_readwrite("update_time", &kline::update_time)
-    .def_readwrite("open", &kline::open)
-    .def_readwrite("high", &kline::high)
-    .def_readwrite("low", &kline::low)
-    .def_readwrite("close", &kline::close)
-    .def_readwrite("volume", &kline::volume)
-    .def_readwrite("turnover", &kline::turnover);
- //   .def_readwrite("value1", &kline::value1); // not support char[]
-
-// defien snapshot struct 
-py::class_<snapshot>(m, "snapshot")
-    .def(py::init<>())
-    .def_readwrite("sym", &snapshot::sym )
-    .def_readwrite("szWindCode", &snapshot::szWindCode )
-    .def_readwrite("nActionDay", &snapshot::nActionDay )
-    .def_readwrite("nTime", &snapshot::nTime )
-    .def_readwrite("nStatus", &snapshot::nStatus )
-    .def_readwrite("nPreClose", &snapshot::nPreClose )
-    .def_readwrite("nOpen", &snapshot::nOpen )
-    .def_readwrite("nHigh", &snapshot::nHigh )
-    .def_readwrite("nLow", &snapshot::nLow )
-    .def_readwrite("nMatch", &snapshot::nMatch )
-    .def_readwrite("nAskPrice1", &snapshot::nAskPrice1 )
-    .def_readwrite("nAskPrice2", &snapshot::nAskPrice2 )
-    .def_readwrite("nAskPrice3", &snapshot::nAskPrice3 )
-    .def_readwrite("nAskPrice4", &snapshot::nAskPrice4 )
-    .def_readwrite("nAskPrice5", &snapshot::nAskPrice5 )
-    .def_readwrite("nAskPrice6", &snapshot::nAskPrice6 )
-    .def_readwrite("nAskPrice7", &snapshot::nAskPrice7 )
-    .def_readwrite("nAskPrice8", &snapshot::nAskPrice8 )
-    .def_readwrite("nAskPrice9", &snapshot::nAskPrice9 )
-    .def_readwrite("nAskPrice10", &snapshot::nAskPrice10 )
-    .def_readwrite("nAskVol1", &snapshot::nAskVol1 )
-    .def_readwrite("nAskVol2", &snapshot::nAskVol2 )
-    .def_readwrite("nAskVol3", &snapshot::nAskVol3 )
-    .def_readwrite("nAskVol4", &snapshot::nAskVol4 )
-    .def_readwrite("nAskVol5", &snapshot::nAskVol5 )
-    .def_readwrite("nAskVol6", &snapshot::nAskVol6 )
-    .def_readwrite("nAskVol7", &snapshot::nAskVol7 )
-    .def_readwrite("nAskVol8", &snapshot::nAskVol8 )
-    .def_readwrite("nAskVol9", &snapshot::nAskVol9 )
-    .def_readwrite("nAskVol10", &snapshot::nAskVol10 )
-    .def_readwrite("nBidPrice1", &snapshot::nBidPrice1 )
-    .def_readwrite("nBidPrice2", &snapshot::nBidPrice2 )
-    .def_readwrite("nBidPrice3", &snapshot::nBidPrice3 )
-    .def_readwrite("nBidPrice4", &snapshot::nBidPrice4 )
-    .def_readwrite("nBidPrice5", &snapshot::nBidPrice5 )
-    .def_readwrite("nBidPrice6", &snapshot::nBidPrice6 )
-    .def_readwrite("nBidPrice7", &snapshot::nBidPrice7 )
-    .def_readwrite("nBidPrice8", &snapshot::nBidPrice8 )
-    .def_readwrite("nBidPrice9", &snapshot::nBidPrice9 )
-    .def_readwrite("nBidPrice10", &snapshot::nBidPrice10 )
-    .def_readwrite("nBidVol1", &snapshot::nBidVol1 )
-    .def_readwrite("nBidVol2", &snapshot::nBidVol2 )
-    .def_readwrite("nBidVol3", &snapshot::nBidVol3 )
-    .def_readwrite("nBidVol4", &snapshot::nBidVol4 )
-    .def_readwrite("nBidVol5", &snapshot::nBidVol5 )
-    .def_readwrite("nBidVol6", &snapshot::nBidVol6 )
-    .def_readwrite("nBidVol7", &snapshot::nBidVol7 )
-    .def_readwrite("nBidVol8", &snapshot::nBidVol8 )
-    .def_readwrite("nBidVol9", &snapshot::nBidVol9 )
-    .def_readwrite("nBidVol10", &snapshot::nBidVol10 )
-    .def_readwrite("nNumTrades", &snapshot::nNumTrades )
-    .def_readwrite("iVolume", &snapshot::iVolume )
-    .def_readwrite("iTurnover", &snapshot::iTurnover )
-    .def_readwrite("nTotalBidVol", &snapshot::nTotalBidVol )
-    .def_readwrite("nTotalAskVol", &snapshot::nTotalAskVol )
-    .def_readwrite("nWeightedAvgBidPrice", &snapshot::nWeightedAvgBidPrice )
-    .def_readwrite("nWeightedAvgAskPrice", &snapshot::nWeightedAvgAskPrice )
-    .def_readwrite("nIOPV", &snapshot::nIOPV )
-    .def_readwrite("nYieldToMaturity", &snapshot::nYieldToMaturity )
-    .def_readwrite("nHighLimited", &snapshot::nHighLimited )
-    .def_readwrite("nLowLimited", &snapshot::nLowLimited )
-    .def_readwrite("nSyl1", &snapshot::nSyl1 )
-    .def_readwrite("nSyl2", &snapshot::nSyl2 )
-    .def_readwrite("nSD2", &snapshot::nSD2 );
-
-// define record struct
-PYBIND11_NUMPY_DTYPE(snapshot, sym,szWindCode,nActionDay,nTime,nStatus,nPreClose,nOpen,nHigh,nLow,nMatch,nAskPrice1,nAskPrice2,nAskPrice3,nAskPrice4,nAskPrice5,nAskPrice6,nAskPrice7,nAskPrice8,nAskPrice9,nAskPrice10,nAskVol1,nAskVol2,nAskVol3,nAskVol4,nAskVol5,nAskVol6,nAskVol7,nAskVol8,nAskVol9,nAskVol10,nBidPrice1,nBidPrice2,nBidPrice3,nBidPrice4,nBidPrice5,nBidPrice6,nBidPrice7,nBidPrice8,nBidPrice9,nBidPrice10,nBidVol1,nBidVol2,nBidVol3,nBidVol4,nBidVol5,nBidVol6,nBidVol7,nBidVol8,nBidVol9,nBidVol10,nNumTrades,iVolume,iTurnover,nTotalBidVol,nTotalAskVol,nWeightedAvgBidPrice,nWeightedAvgAskPrice,nIOPV,nYieldToMaturity,nHighLimited,nLowLimited,nSyl1,nSyl2,nSD2);
-PYBIND11_NUMPY_DTYPE(kline, stock_id, market_time, update_time, open, high, low, close, volume, turnover );
-
 //// define field describe struct
 PYBIND11_NUMPY_DTYPE(cli_field_descriptor2_py, type, flags, name, len, refTableName, inverseRefFieldName );
 
 //// define parament struct 
 PYBIND11_NUMPY_DTYPE(ParameterBinding_py, u, type, name);
-
-// define union  record_struct
-py::class_<record_struct>(m, "record_struct")
-    .def(py::init<>())
-    .def_readwrite("snapshot_m", &record_struct::snapshot_m)
-    .def_readwrite("kline", &record_struct::kline_m);
  
 // define export class 
 py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::forcecast
@@ -468,7 +367,6 @@ py::class_<cli_python>(m, "cli_python") // , py::array::c_style | py::array::for
     .def("open", &cli_python::open)
     .def("create_statement", static_cast<int (cli_python::*)(py::str, py::array_t<cli_field_descriptor2_py, py::array::c_style | py::array::forcecast>&, py::array_t<ParameterBinding_py, py::array::c_style | py::array::forcecast>&)>(&cli_python::create_statement))
     .def("get_record", &cli_python::get_record, py::return_value_policy::reference_internal)
-//    .def("get_record", static_cast<kline& (cli_python::*)()>(&cli_python::get_record), " get kline record reference")
     .def("insert",  &cli_python::insert_one, "insert one record to db" )
     .def("insert",  &cli_python::insert, "insert kline record to db" )
     .def("insert_update", &cli_python::insert_update, "insert and update to db")

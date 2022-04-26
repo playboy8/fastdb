@@ -183,4 +183,43 @@ struct ParameterBinding_py {
         para.name = name;
         return ret;
     }
+
+    bool convert_parament_2(ParameterBinding &para, const char *u)
+    { // u 的值必须 按照 python 方式转化成str， 在c++中再还原成原类型   
+        bool ret = true;
+        switch (para.type)
+        {
+        case cli_oid : 
+            para.u.oid = atoi(u);     std::cout << " para.u = " << para.u.oid << std::endl;    
+                break;
+        case cli_bool : 
+            para.u.b = atoi(u);         std::cout << " para.u = " << para.u.b << std::endl;   
+                break;
+        case cli_int1 : 
+            para.u.i1 = atoi(u);        std::cout << " para.u = " << para.u.i1 << std::endl;  
+                break;
+        case cli_int2 :
+            para.u.i2 = atoi(u);     std::cout << " para.u = " << para.u.i2 << std::endl;
+                break;
+        case cli_int4 : 
+            para.u.i4 = atoi(u);     std::cout << " para.u = " << para.u.i4 << std::endl;
+                break;
+        case cli_int8 : 
+            para.u.i8 = atol(u);     std::cout << " para.u = " << para.u.i8 << std::endl;
+                break;
+        case cli_real4 : 
+            para.u.r4 = atof(u);      std::cout << " para.u = " << para.u.r4 << std::endl;
+                break;
+        case cli_real8 : 
+            para.u.r8 = atof(u);      std::cout << " para.u = " << para.u.r8 << std::endl;
+                break;
+        case cli_array_of_int1 : 
+        case cli_rectangle : 
+        default:
+            ret = false;
+            break;
+        }
+        return ret;
+    }
+
 };   
