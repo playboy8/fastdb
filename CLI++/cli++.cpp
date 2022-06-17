@@ -50,6 +50,13 @@ namespace cli_plusplus {
         int  statement = cli_statement(session, sql.c_str());
         if(statement >= 0)
         {
+            if(active_stat >=0 )
+            {
+                cli_precommit(active_stat);
+                cli_free(active_stat);
+                statements.pop_back();
+            }
+
             statements.push_back(statement);     
             long unsigned record_size = cli_cal_record_size(field_descs,field_num);
             if( record.size() < record_size )
@@ -59,8 +66,6 @@ namespace cli_plusplus {
                 statements.pop_back();
                 return cli_bad_descriptor;
             }
-            if(active_stat >=0 )
-                cli_precommit(active_stat);
 
             active_stat = statement;
             if(0 == field_desc.size())
@@ -91,12 +96,15 @@ namespace cli_plusplus {
     int cli_api::create_statement(std::string sql, cli_field_descriptor2 field_descs[], int field_num, ParameterBinding parament_field_descs[], int parament_num)
     {
         int rc;
-        if(active_stat >=0 )
-            cli_precommit(active_stat);
-
         int statement = cli_statement(session, sql.c_str());
         if(statement >= 0)
         {
+            if(active_stat >=0 )
+            {
+                cli_precommit(active_stat);
+                cli_free(active_stat);
+                statements.pop_back();
+            }
             
             int record_size = cli_cal_record_size(field_descs,field_num);
             record.resize(record_size);   
