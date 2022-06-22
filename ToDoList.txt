@@ -1,0 +1,7 @@
+ToDoList
+
+1. 当使用subsql工具在一台机器上同时部署多套 fastdb数据库， 并使用 远程接口进行大量的读写和查询操作， 当运行长时间（2天以上）后， 在终端执行exit 正常退出其中一台fastdb 服务器后， 再次重新启动改服务器，
+  会出现一定的概率打开失败， 界面提示错误信息：
+  " Failed to create database file 
+   Database not opened
+   Segmentation fault "
